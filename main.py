@@ -24,9 +24,9 @@ LOGGER.addHandler(handler)
 """ /logger setting """
 
 """ imap server setting """
-SERVER = ""
-USER = ""
-PASSWORD = ""
+SERVER = "imap.hoge"
+USER = "hogesama"
+PASSWORD = "hogehoge123"
 """ / imap server setting """
 
 """ mattermost server setting """
@@ -51,8 +51,8 @@ def main():
         imap.login(USER, PASSWORD)
         try:
             imap.select()
-            # typ, data = imap.search(None, 'ON 14-Dec-2017')
-            # mail_parse(data, imap, mails)
+            typ, data = imap.search(None, 'ON 25-Jun-2018')
+            mail_parse(data, imap, mails)
         finally:
             LOGGER.info("finally")
             imap.close()
@@ -101,7 +101,7 @@ def multipart(email_message):
     if byt is None:
         body = prt.get_payload()[1].get_payload(decode=False)
     else:
-        body = byt.decode(encoding=msg_encoding)
+        body = byt.decode(encoding=msg_encoding, errors='replace')
     return body
 
 
@@ -109,7 +109,7 @@ def single_part(email_message, msg_encoding):
     if email_message.get_content_charset() in CAN_DECODE_LIST:
         body = email_message.get_payload()
     else:
-        body = email_message.get_payload(decode=True).decode(encoding=msg_encoding)
+        body = email_message.get_payload(decode=True).decode(encoding=msg_encoding, errors='replace')
     # ↑やってもbase64が残っている可能性がある？
     if body.find('$B') >= 0 and body.find('(B') >= 0:
         body = email_message.get_payload(decode=True).decode(encoding=msg_encoding)
