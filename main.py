@@ -5,14 +5,14 @@ import imaplib
 import email
 from email.header import decode_header, make_header
 from logging import getLogger, StreamHandler, DEBUG, Formatter
-from dateutil.parser import parse
+from dateutil.parser import parse as date_parse
 import yaml
 import codecs
 from mattermostdriver import Driver
 from mattermostdriver.endpoints.channels import Channels
 
 """ mail setting """
-CAN_DECODE_LIST = ['text/plain', 'multipart/alternative']
+DECODE_POSSIBLE_LIST = ['text/plain', 'multipart/alternative']
 """ / mail setting """
 
 """ logger setting """
@@ -69,10 +69,10 @@ def mail_parse(data, imap, mails):
         typ, data = imap.fetch(num, '(RFC822)')
         email_message = email.message_from_bytes(data[0][1])
         #
-        date = parse(email_message['Date'])
-        mail_from = str(make_header(decode_header(email_message['From'])))
-        mail_to = str(make_header(decode_header(email_message['To'])))
-        subject = str(make_header(decode_header(email_message['Subject'])))
+        date = date_parse(email_message['Date'])
+        mail_from = _decode_header(email_message['From'])
+        mail_to = _decode_header(email_message['To'])
+        subject = _decode_header(email_message['Subject'])
         body = parse_body(email_message, subject)
         LOGGER.debug("date:{0}".format(date))
         LOGGER.debug("from:{0}".format(mail_from))
@@ -80,6 +80,10 @@ def mail_parse(data, imap, mails):
         LOGGER.debug("subject:{0}".format(subject))
         LOGGER.debug("body:{0}".format(body))
         mails.append(MailModel(date, mail_from, mail_to, subject, body))
+
+
+def _decode_header(header):
+    return str(make_header(decode_header(header)))
 
 
 def parse_body(email_message, subject):
@@ -95,25 +99,20 @@ def parse_body(email_message, subject):
 
 
 def multipart(email_message):
-    prt = email_message.get_payload()[0]
-    msg_encoding = prt.get_content_charset()
-    byt = prt.get_payload(decode=True)
-    if byt is None:
-        body = prt.get_payload()[1].get_payload(decode=False)
-    else:
-        body = byt.decode(encoding=msg_encoding, errors='replace')
-    return body
+    for pr in email_message.get_payload():
+        msg_encoding = pr.get_content_charset()
+        _message_byte = pr.get_payload(decode=True)
+        if _message_byte is None:
+            continue
+        return parse(_message_byte, msg_encoding)
 
 
 def single_part(email_message, msg_encoding):
-    if email_message.get_content_charset() in CAN_DECODE_LIST:
-        body = email_message.get_payload()
-    else:
-        body = email_message.get_payload(decode=True).decode(encoding=msg_encoding, errors='replace')
-    # ↑やってもbase64が残っている可能性がある？
-    if body.find('$B') >= 0 and body.find('(B') >= 0:
-        body = email_message.get_payload(decode=True).decode(encoding=msg_encoding)
-    return body
+    return parse(email_message.get_payload(decode=True), email_message.get_content_charset())
+
+
+def parse(_byte, encoding):
+    return _byte.decode(encoding=encoding, errors='replace')
 
 
 def load_yaml():
