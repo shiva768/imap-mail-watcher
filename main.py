@@ -3,6 +3,7 @@
 
 import imaplib
 import email
+import email.parser
 from email.header import decode_header, make_header
 from logging import getLogger, StreamHandler, DEBUG, Formatter
 from dateutil.parser import parse as date_parse
@@ -51,7 +52,7 @@ def main():
         imap.login(USER, PASSWORD)
         try:
             imap.select()
-            typ, data = imap.search(None, 'ON 25-Jun-2018')
+            typ, data = imap.search(None, 'ON 27-Jun-2018')
             mail_parse(data, imap, mails)
         finally:
             LOGGER.info("finally")
@@ -73,7 +74,8 @@ def mail_parse(data, imap, mails):
         mail_from = _decode_header(email_message['From'])
         mail_to = _decode_header(email_message['To'])
         subject = _decode_header(email_message['Subject'])
-        body = parse_body(email_message, subject)
+        LOGGER.info("{0}:::::{1}".format(email_message.get_content_type(), subject))
+        body = parse_body(email_message)
         LOGGER.debug("date:{0}".format(date))
         LOGGER.debug("from:{0}".format(mail_from))
         LOGGER.debug("to:{0}".format(mail_to))
@@ -86,13 +88,9 @@ def _decode_header(header):
     return str(make_header(decode_header(header)))
 
 
-def parse_body(email_message, subject):
-    msg_encoding = email_message.get_content_charset()
-    if msg_encoding is None:
-        msg_encoding = 'utf-8'
-    LOGGER.info("{0}:::::{1}".format(email_message.get_content_type(), subject))
+def parse_body(email_message):
     if not email_message.is_multipart():  # シングルパート
-        body = single_part(email_message, msg_encoding)
+        body = single_parse(email_message)
     else:  # マルチパート
         body = multipart(email_message)
     return body
@@ -100,19 +98,28 @@ def parse_body(email_message, subject):
 
 def multipart(email_message):
     for pr in email_message.get_payload():
-        msg_encoding = pr.get_content_charset()
-        _message_byte = pr.get_payload(decode=True)
-        if _message_byte is None:
-            continue
-        return parse(_message_byte, msg_encoding)
+        if pr.is_multipart():
+            return multipart(pr)
+        return single_parse(pr)
 
 
-def single_part(email_message, msg_encoding):
-    return parse(email_message.get_payload(decode=True), email_message.get_content_charset())
+def single_parse(email_message):
+    msg_encoding = email_message.get_content_charset()
+    if msg_encoding is None:
+        try:
+            return parse(email_message.get_payload(decode=True), 'utf-8', 'strict')
+        except UnicodeDecodeError as e:
+            LOGGER.warning("parse default encoding utf-8 error:{0}".format(e))
+            try:
+                return parse(email_message.get_payload(decode=True), 'sjis', 'strict')
+            except UnicodeDecodeError as e2:
+                LOGGER.error("parse encoding sjis error:{0}".format(e2))
+                return "parse error"
+    return parse(email_message.get_payload(decode=True), msg_encoding)
 
 
-def parse(_byte, encoding):
-    return _byte.decode(encoding=encoding, errors='replace')
+def parse(_byte, encoding, error_handle='replace'):
+    return _byte.decode(encoding=encoding, errors=error_handle)
 
 
 def load_yaml():
