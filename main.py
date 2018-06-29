@@ -1,34 +1,27 @@
 #! /usr/bin/python
 # -*- coding: utf-8 -*-
 
-import imaplib
+import codecs
 import email
 import email.parser
+import imaplib
+import traceback
 from email.header import decode_header, make_header
-from logging import getLogger, StreamHandler, DEBUG, Formatter
-from dateutil.parser import parse as date_parse
-import yaml
-import codecs
-from mattermostdriver import Driver
-from mattermostdriver.endpoints.channels import Channels
+from logging import DEBUG, Formatter, StreamHandler, getLogger
 
-""" mail setting """
-DECODE_POSSIBLE_LIST = ['text/plain', 'multipart/alternative']
-""" / mail setting """
+import yaml
+from dateutil.parser import parse as date_parse
+from mattermostdriver import Driver
+
+from imap_push_receiver import PushReceiver
 
 """ logger setting """
-LOGGER = getLogger(__name__)
+LOGGER = getLogger('imap-mail-watcher')
 LOGGER.setLevel(DEBUG)
 handler = StreamHandler()
 handler.setFormatter(Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
 LOGGER.addHandler(handler)
 """ /logger setting """
-
-""" imap server setting """
-SERVER = "imap.hoge"
-USER = "hogesama"
-PASSWORD = "hogehoge123"
-""" / imap server setting """
 
 """ mattermost server setting """
 TEAM_NAME = 'mail'
@@ -41,47 +34,95 @@ MATTERMOST_DRIVER = Driver({
     'basepath': '/api/v4',
     'timeout': 30
 })
-
 """ / mattermost server setting """
 
 
 def main():
     try:
         mails = []
-        imap = imaplib.IMAP4_SSL(SERVER)
-        imap.login(USER, PASSWORD)
+        imap = imaplib.IMAP4_SSL('')
+        imap.login('', '')
         try:
-            imap.select()
-            typ, data = imap.search(None, 'ON 27-Jun-2018')
-            mail_parse(data, imap, mails)
+            _status, _seq_no = imap.select()
+            if _status != 'OK':
+                raise Exception('response error')
+            global current_uid
+            current_uid = fetch_uid(_seq_no[0], imap)
+
+            def callback(seq_no):
+                global current_uid
+                LOGGER.info("sequence no: {}".format(seq_no))
+                _uid = fetch_uid(seq_no, imap)
+
+                if _uid is None or current_uid >= _uid:
+                    return
+                current_uid = _uid
+                status, data = imap.uid('fetch', _uid, '(RFC822)')
+                LOGGER.info("fetch status: {}, data: {}".format(status, data))
+                if status == 'NO':
+                    return
+                for idx, d in enumerate(data):
+                    if type(d) == bytes and d.startswith(b' UID') and d.find(b'FLAGS') >= 0:
+                        message = data[idx - 1]
+                        mail_parse(message[1], mails)
+                        break
+
+            receiver = PushReceiver(callback)
+            while True:
+                receiver.listen()
+
+        except KeyboardInterrupt:
+            LOGGER.info("interrupt")
+            pass
         finally:
-            LOGGER.info("finally")
+            LOGGER.info("main process ending")
             imap.close()
             imap.logout()
-        yml = load_yaml()
-        api_process(yml)
+        # yml = load_yaml()
+        # api_process(yml)
     except Exception as ee:
         LOGGER.error("*** error ***")
-        LOGGER.error(str(ee))
+        LOGGER.error(traceback.format_exc())
 
 
-def mail_parse(data, imap, mails):
-    for num in data[0].split():
-        typ, data = imap.fetch(num, '(RFC822)')
-        email_message = email.message_from_bytes(data[0][1])
-        #
-        date = date_parse(email_message['Date'])
-        mail_from = _decode_header(email_message['From'])
-        mail_to = _decode_header(email_message['To'])
-        subject = _decode_header(email_message['Subject'])
-        LOGGER.info("{0}:::::{1}".format(email_message.get_content_type(), subject))
-        body = parse_body(email_message)
-        LOGGER.debug("date:{0}".format(date))
-        LOGGER.debug("from:{0}".format(mail_from))
-        LOGGER.debug("to:{0}".format(mail_to))
-        LOGGER.debug("subject:{0}".format(subject))
-        LOGGER.debug("body:{0}".format(body))
-        mails.append(MailModel(date, mail_from, mail_to, subject, body))
+def fetch_uid(sequence_no, imap):
+    status, message_list = imap.fetch(sequence_no, 'uid')
+    # サーバからメールを削除するとsequence_noがどんどんずれていく問題 -> 接続しなおし？
+    if status == 'NO':
+        return None
+    for message in message_list:
+        LOGGER.debug("message: {}".format(message))
+        if message.find(b'UID') >= 0:
+            _uid = message.split()[2].replace(b')', b'')
+            LOGGER.info("fetched uid: {}".format(_uid))
+            return _uid
+    raise Exception('response error')
+
+
+def reconnect(imap):
+    LOGGER.info('reconnect')
+    imap.close()
+    imap.logout()
+    imap = imaplib.IMAP4_SSL('')
+    imap.login('', '')
+
+
+def mail_parse(data, mails):
+    LOGGER.info(data)
+    _mail = email.message_from_bytes(data)
+
+    date = date_parse(_mail['Date'])
+    mail_from = _decode_header(_mail['From'])
+    mail_to = _decode_header(_mail['To'])
+    subject = _decode_header(_mail['Subject'])
+    LOGGER.info("{0}:::::{1}".format(_mail.get_content_type(), subject))
+    body = parse_body(_mail)
+    LOGGER.debug("date:{0}".format(date))
+    LOGGER.debug("from:{0}".format(mail_from))
+    LOGGER.debug("to:{0}".format(mail_to))
+    LOGGER.debug("subject:{0}".format(subject))
+    LOGGER.debug("body:{0}".format(body))
+    mails.append(MailModel(date, mail_from, mail_to, subject, body))
 
 
 def _decode_header(header):
@@ -156,15 +197,23 @@ def post():
     pass
 
 
-
-
 class MailModel:
+
     def __init__(self, date, mail_from, mail_to, subject, body):
         self.date = date
         self.mail_from = mail_from
         self.mail_to = mail_to
         self.subject = subject
         self.body = body
+
+    # def __init__(self, data):
+    #     message = email.message_from_bytes(data)
+    #     self.title = _decode_header()
+    #     self.date = date
+    #     self.mail_from = mail_from
+    #     self.mail_to = mail_to
+    #     self.subject = subject
+    #     self.body = body
 
 
 if __name__ == '__main__':

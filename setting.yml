@@ -1,0 +1,17 @@
+app:
+  common:
+    mattermost:
+      scheme: http
+        url: 192.168.1.198
+        port: 80
+        basepath: /api/v4
+        timeout: 30
+  users:
+    - name: hoge
+      mattermost:
+        token: 1wgfbn45j3ybfnn4wdfqf17tjo
+        team_id: hoge-mail
+      imap:
+        host: exchange1.hoge.co.jp
+        user: hoge@hoge.co.jp
+        password: hoge123
