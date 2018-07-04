@@ -7,13 +7,14 @@ LOGGER = getLogger('imap-mail-watcher').getChild('receiver')
 
 
 class PushReceiver:
-    def __init__(self, callback):
+    def __init__(self, imap_setting, callback):
+        self.imap_setting = imap_setting
         self.callback = callback
         self.__connect()
 
     def __connect(self):
-        self.imap = imaplib.IMAP4_SSL('exchange1.hoge.co.jp')
-        self.imap.login('hoge@hoge.co.jp', 'hoge123')
+        self.imap = imaplib.IMAP4_SSL(self.imap_setting['host'])
+        self.imap.login(self.imap_setting['user'], self.imap_setting['password'])
         self.imap.select()
         self.imap.send(("{0} IDLE\r\n".format(self.imap._new_tag())).encode('utf-8'))
         line = self.imap.readline()
@@ -31,15 +32,10 @@ class PushReceiver:
             strip_line = line.strip()
             LOGGER.info(strip_line)
             if strip_line.endswith(b'EXISTS'):
-                seq_no = strip_line.split(b' ')[1].decode()
-                LOGGER.info("message id: {}".format(seq_no))
-                self.callback(seq_no)
+                self.callback()
             elif strip_line.find(b'BYE') >= 0:
                 self.__connect()
-            else:
-                if strip_line.endswith(b'RECENT'):
-                    LOGGER.info("RECENT: {}".format(strip_line.split(b' ')[1].decode()))
 
         except KeyboardInterrupt as k:
-            self.__del__
+            # self.__del__ # 多分呼ばなくて呼ばれるはず
             raise k

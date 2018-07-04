@@ -2,10 +2,10 @@ app:
   common:
     mattermost:
       scheme: http
-        url: 192.168.1.198
-        port: 80
-        basepath: /api/v4
-        timeout: 30
+      url: 192.168.1.198
+      port: 80
+      basepath: /api/v4
+      timeout: 30
   users:
     - name: hoge
       mattermost:
