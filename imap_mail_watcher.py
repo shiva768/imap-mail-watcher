@@ -29,7 +29,7 @@ def main():
 
 
 async def parallel_process(user, common, stop):
-    client = MattermostClient(common['mattermost'], user['mattermost']['token'])
+    client = MattermostClient(common['mattermost'], user['mattermost']['token'], user['distribute'])
     watcher = MailWatcher(user, client, stop)
     watcher.watch()
 

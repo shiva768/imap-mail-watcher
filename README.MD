@@ -39,7 +39,7 @@ exchangeも多分大体使えるけど、検証しておりません
           password: <password>
           options:
             start-uid: <start-imap-uid>
-        allocation:
+        distribute:
           drops: # default 'match' => perfect match
             - condition: {subject: 'exclude title'}
             - condition: {from: 'exclude@exclude.com'}
