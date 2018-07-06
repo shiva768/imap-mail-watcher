@@ -17,7 +17,6 @@ LOGGER.addHandler(handler)
 """ /logger setting """
 
 
-
 def main():
     setting = SettingManager()
     loop = get_event_loop()
@@ -33,6 +32,7 @@ async def parallel_process(user, common, stop):
     client = MattermostClient(common['mattermost'], user['mattermost']['token'])
     watcher = MailWatcher(user, client, stop)
     watcher.watch()
+
 
 if __name__ == '__main__':
     LOGGER.info('*** 開始 ***')
