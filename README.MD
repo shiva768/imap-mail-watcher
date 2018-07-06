@@ -62,7 +62,7 @@ exchangeも多分大体使えるけど、検証しておりません
                 - pattern: match                      # perfect match
                   condition: {subject: 'foo'}
   ```
-2. `python ./main.py`  
+2. `python ./imap_mail_watcher.py`  
 
 ## Install
 git clone https://github.com/shiva768/imap-mail-watcher.git
