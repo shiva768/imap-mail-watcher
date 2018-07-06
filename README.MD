@@ -21,46 +21,46 @@ exchangeも多分大体使えるけど、検証しておりません
 1. setting.ymlを設定する  
   ```
   app:
-  common:
-    mattermost:
-      scheme: <http>
-      url: <mattermost url>
-      port: <80>
-      basepath: </api/v4>
-      timeout: <30>
-  users: # You need at least one user
-    - name: <unique name>
+    common:
       mattermost:
-        token: <mattermost token>
-        team_id: <teamname>
-      imap:
-        host: <hostname>
-        user: <username>
-        password: <password>
-        options:
-          start-uid: <start-imap-uid>
-      allocation:
-        drops: # default 'match' => perfect match
-          - condition: {subject: 'exclude title'}
-          - condition: {from: 'exclude@exclude.com'}
-          - condition: {
-              from: 'excude-from@exculude-and.com', # and
-              to: 'excude-to@exculude-and.com' # and
-            }
-        not_match: other                            # channel-name for not hitting either "catches" or "drops"
-        catches:
-          - channel_name: ch-1
-            rule:
-              - pattern: search                     # partial match
-                condition: {any: hoge}
-          - channel_name: ch-2
-            rule:
-              - pattern: search                     # partial match
-                condition: {subject: 'foobar'}
-          - channel_name: ch-3
-            rule:
-              - pattern: match                      # perfect match
-                condition: {subject: 'foo'}
+        scheme: <http>
+          url: <mattermost url>
+        port: <80>
+        basepath: </api/v4>
+        timeout: <30>
+    users: # You need at least one user
+      - name: <unique name>
+        mattermost:
+          token: <mattermost token>
+          team_id: <teamname>
+        imap:
+          host: <hostname>
+          user: <username>
+          password: <password>
+          options:
+            start-uid: <start-imap-uid>
+        allocation:
+          drops: # default 'match' => perfect match
+            - condition: {subject: 'exclude title'}
+            - condition: {from: 'exclude@exclude.com'}
+            - condition: {
+                from: 'excude-from@exculude-and.com', # and
+                to: 'excude-to@exculude-and.com' # and
+              }
+          not_match: other                            # channel-name for not hitting either "catches" or "drops"
+          catches:
+            - channel_name: ch-1
+              rule:
+                - pattern: search                     # partial match
+                  condition: {any: hoge}
+            - channel_name: ch-2
+              rule:
+                - pattern: search                     # partial match
+                  condition: {subject: 'foobar'}
+            - channel_name: ch-3
+              rule:
+                - pattern: match                      # perfect match
+                  condition: {subject: 'foo'}
   ```
 2. `python ./main.py`  
 
