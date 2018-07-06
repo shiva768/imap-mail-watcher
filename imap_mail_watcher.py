@@ -28,6 +28,9 @@ class MailWatcher:
         self.queue = Queue(20)
         self.stop = stop
 
+    def __initialize_fetch(self):
+        pass
+
     def __fetch_uid(self, sequence_no):
         status, response = self.imap.fetch(sequence_no, 'uid')
         if status == 'NO':
@@ -59,15 +62,7 @@ class MailWatcher:
             LOGGER.debug("fetch status: {}, data: {}".format(status, data))
             if status == 'NO':
                 return
-            for idx, d in enumerate(data):
-                if type(d) == bytes:
-                    uid = MailWatcher.__extract_uid_by_string(d)
-                    if uid is None or uid == self.current_uid:
-                        continue
-                    self.current_uid = uid
-                    message = data[idx - 1]
-                    mail = mail_parse(message[1])
-                    self.mattermost.post(mail)
+            self.__extract(data)
 
         self.receiver = PushReceiver(self.imap_setting, callback)
         try:
@@ -75,6 +70,17 @@ class MailWatcher:
         except KeyboardInterrupt:
             LOGGER.info("interrupt")
             self.stop()
+
+    def __extract(self, data):
+        for idx, d in enumerate(data):
+            if type(d) == bytes:
+                uid = MailWatcher.__extract_uid_by_string(d)
+                if uid is None or uid == self.current_uid:
+                    continue
+                self.current_uid = uid
+                message = data[idx - 1]
+                mail = MailParser(uid, message[1]).mail_parse()
+                self.mattermost.post(mail)
 
     def __watch(self):
         while True:
