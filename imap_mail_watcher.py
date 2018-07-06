@@ -36,6 +36,5 @@ async def parallel_process(user, common, stop):
 
 if __name__ == '__main__':
     LOGGER.info('*** 開始 ***')
-
     main()
     LOGGER.info('*** 終了 ***')
