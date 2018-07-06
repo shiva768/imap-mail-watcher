@@ -11,6 +11,7 @@ LOGGER = getLogger('imap-mail-watcher').getChild('watcher')
 """ /logger setting """
 
 UID_REGEX = re.compile(b'UID ([0-9]+)')
+SEQ_REGEX = re.compile(b'messages ([0-9]+)')
 
 
 class MailWatcher:
@@ -27,21 +28,34 @@ class MailWatcher:
         self.receiver = None
         self.queue = Queue(20)
         self.stop = stop
+        if 'options' in self.imap_setting \
+                and 'start-uid' in self.imap_setting['options'] \
+                and self.imap_setting['options']['start-uid'] \
+                and len(self.imap_setting['options']['start-uid']) > 0:
+            start_uid = self.imap_setting['options']['start-uid']
+            LOGGER.info("initialize fetch. start uid:{}".format(start_uid))
+            self.__initialize_fetch(start_uid)
 
-    def __initialize_fetch(self):
-        pass
+    def __initialize_fetch(self, start_uid: str):
+        status, data = self.imap.uid('fetch', "{}:*".format(start_uid), '(RFC822)')
+        LOGGER.debug("initialize fetch status: {}, data: {}".format(status, data))
+        if status == 'NO':
+            return
+        self.__extract(data)
+        if self.current_uid != self.__fetch_uid(self.__get_latest_seq_no()):
+            self.__initialize_fetch(self.current_uid.decode('utf-8'))
 
     def __fetch_uid(self, sequence_no):
         status, response = self.imap.fetch(sequence_no, 'uid')
-        if status == 'NO':
-            return None
-        uid = self.__extract_uid_by_response(response)
-        if uid is not None:
-            LOGGER.info("fetched uid: {}".format(uid))
-            return uid
+        if status == 'OK':
+            uid = self.__extract_uid_by_response(response)
+            if uid is not None:
+                LOGGER.info("fetched uid: {}".format(uid))
+                return uid
         raise Exception('response error')
 
-    def __extract_uid_by_response(self, response):
+    @staticmethod
+    def __extract_uid_by_response(response):
         for message in response:
             LOGGER.debug("fetched uid message: {}".format(message))
             return MailWatcher.__extract_uid_by_string(message)
@@ -85,6 +99,14 @@ class MailWatcher:
     def __watch(self):
         while True:
             self.receiver.listen()
+
+    def __get_latest_seq_no(self):
+        status, seq_no = self.imap.status('inbox', 'messages')
+        if status == 'OK':
+            matcher = SEQ_REGEX.search(seq_no[0])
+            if matcher is not None:
+                return matcher.group(1)
+        raise Exception('response error')
 
     def __del__(self):
         LOGGER.info("MailWatcher end")
