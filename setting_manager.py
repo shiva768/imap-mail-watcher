@@ -9,6 +9,6 @@ class SettingManager:
         self.users = _settings['app']['users']
 
     def __file_load(self) -> dict:
-        with open('setting.yml') as f:
+        with open('setting.yml', encoding='utf-8') as f:
             _settings = yaml.load(f)
         return _settings
