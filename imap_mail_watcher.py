@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from asyncio import get_event_loop
-from logging import DEBUG, Formatter, StreamHandler, getLogger
+from logging import DEBUG, Formatter, StreamHandler, FileHandler, getLogger
 
 from mail_watcher import MailWatcher
 from mattermost_client import MattermostClient
@@ -10,10 +10,12 @@ from setting_manager import SettingManager
 
 """ logger setting """
 LOGGER = getLogger('imap-mail-watcher')
+formatter = Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 LOGGER.setLevel(DEBUG)
-handler = StreamHandler()
-handler.setFormatter(Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-LOGGER.addHandler(handler)
+stream_handler = StreamHandler()
+stream_handler.setFormatter(formatter)
+# file_handler = FileHandler(filename='/var/log/')
+LOGGER.addHandler(stream_handler)
 """ /logger setting """
 
 

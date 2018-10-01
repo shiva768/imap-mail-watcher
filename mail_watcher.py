@@ -4,7 +4,7 @@ from logging import getLogger
 from queue import Queue
 
 from mail_receiver import PushReceiver
-from parser import MailParser
+from _parser import MailParser
 
 """ logger setting """
 LOGGER = getLogger('imap-mail-watcher').getChild('watcher')
