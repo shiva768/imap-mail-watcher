@@ -17,13 +17,9 @@ class MailWatcher:
 
     def __init__(self, user, mattermost, stop):
         self.imap_setting = user['imap']
-        self.imap = imaplib.IMAP4_SSL(self.imap_setting['host'])
-        self.imap.login(self.imap_setting['user'], self.imap_setting['password'])
+        seq_no = self.__connect()
         self.mattermost = mattermost
-        status, seq_no = self.imap.select()
-        if status != 'OK':
-            raise Exception('response error')
-        self.current_uid = self.__fetch_uid(seq_no[0])
+        self.current_uid = self.__fetch_uid(seq_no)
         self.receiver = None
         self.queue = Queue(20)
         self.stop = stop
@@ -34,6 +30,14 @@ class MailWatcher:
             start_uid = self.imap_setting['options']['start-uid']
             LOGGER.info("initialize fetch. start uid:{}".format(start_uid))
             self.__initialize_fetch(start_uid)
+
+    def __connect(self):
+        self.imap = imaplib.IMAP4_SSL(self.imap_setting['host'])
+        self.imap.login(self.imap_setting['user'], self.imap_setting['password'])
+        status, seq_no = self.imap.select()
+        if status != 'OK':
+            raise Exception('response error')
+        return seq_no[0]
 
     def __initialize_fetch(self, start_uid: str):
         status, data = self.imap.uid('fetch', "{}:*".format(start_uid), '(RFC822)')
@@ -81,7 +85,8 @@ class MailWatcher:
         try:
             self.__watch()
         except TimeoutError:
-            LOGGER.info('timeout. reconnect')
+            LOGGER.info('watcher timeout. reconnect')
+            self.__reconnect()
             self.watch()
         except KeyboardInterrupt:
             LOGGER.info("interrupt")
@@ -112,8 +117,15 @@ class MailWatcher:
 
     def __del__(self):
         LOGGER.info("MailWatcher end")
+        self.__close()
+
+    def __close(self):
         try:
             self.imap.close()
             self.imap.logout()
         except:
             pass
+
+    def __reconnect(self):
+        self.__close()
+        self.__connect()

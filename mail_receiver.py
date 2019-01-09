@@ -24,7 +24,7 @@ class PushReceiver:
 
     def __del__(self):
         LOGGER.info('PushReceiver end')
-        self.imap.logout()
+        self.__close()
 
     def listen(self):
         try:
@@ -37,8 +37,21 @@ class PushReceiver:
                 self.listen()
             elif len(strip_line) <= 0:
                 LOGGER.info('reconnect')
-                self.imap.logout()
-                self.__connect()
+                self.__reconnect()
+        except TimeoutError:
+            LOGGER.info('receiver timeout. reconnect')
+            self.__reconnect()
         except KeyboardInterrupt as k:
             # self.__del__ # 多分呼ばなくて呼ばれるはず
             raise k
+
+    def __close(self):
+        try:
+            self.imap.close()
+            self.imap.logout()
+        except:
+            pass
+
+    def __reconnect(self):
+        self.__close()
+        self.__connect()

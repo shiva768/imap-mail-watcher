@@ -14,7 +14,7 @@ EXCLUDE_MAIL_PROPERTY = ['_uid', '_date', '_attachments']
 
 
 class MattermostClient:
-    def __init__(self, mattermost_setting, mattermost_user_setting, distributes):
+    def __init__(self, mattermost_setting, username, mattermost_user_setting, distributes):
         self.driver = Driver({
             'url': mattermost_setting['url'],
             'token': mattermost_user_setting['token'],
@@ -23,6 +23,7 @@ class MattermostClient:
             'basepath': mattermost_setting['basepath'],
             'timeout': mattermost_setting['timeout']
         })
+        self.username = username
         team_name = mattermost_user_setting['team_name']
         self.driver.login()
         self.distributes = distributes
@@ -34,9 +35,13 @@ class MattermostClient:
             LOGGER.info("{}, {}".format(channel_name, mail))
             if channel_name == 'drops':
                 return
-            self.api_process(channel_name, mail)
+            self.__api_process(channel_name, mail)
         except Exception as e:
             LOGGER.error(e)
+            try:
+                self.__error_post(mail, e)
+            except Exception as e2:
+                LOGGER.error(e2)
 
     def __distributing(self, mail):
         if 'drops' in self.distributes:
@@ -53,6 +58,7 @@ class MattermostClient:
                 if result is not None:
                     LOGGER.debug("match rule {}".format(_filter_set))
                     return result
+        return 'general'
 
     def __common_distributing(self, mail, _filter_set, channel_name):
         if 'rule' in _filter_set:
@@ -83,37 +89,45 @@ class MattermostClient:
                 return condition in values
             return any([condition in str(v) for v in values])
 
-    def api_process(self, channel_name, mail):
+    def __api_process(self, channel_name, mail):
+        channel_id = self.__get_channel_id_if_create_channel(channel_name)
+        file_ids = self.__check_if_upload_file(channel_id, mail)
+        self.__create_message(channel_id, mail, file_ids)
 
-        channel_id = self.get_channel_id_if_create_channel(channel_name)
-        file_ids = self.check_if_upload_file(channel_id, mail)
-        self.create_message(channel_id, mail, file_ids)
-
-    def get_channel_id_if_create_channel(self, channel_name):
+    def __get_channel_id_if_create_channel(self, channel_name):
         try:
             channel = self.driver.channels.get_channel_by_name(self.team_id, channel_name)
             return channel['id']
         except ResourceNotFound:
+            LOGGER.info('channel does not exist and create channel')
+            user_id = self.driver.users.get_user_by_username(self.username)['id']
             channel = self.driver.channels.create_channel(options={
                 'team_id': self.team_id,
                 'name': channel_name,
                 'display_name': channel_name,
                 'type': 'O'
             })
-            return channel['id']
+            channel_id = channel['id']
+            self.driver.channels.add_user(channel_id, options={
+                'user_id': user_id
+            })
+            return channel_id
 
-    def create_message(self, channel_id, mail, file_ids):
-        message = self.format_message(mail)
+    def __create_message(self, channel_id, mail, file_ids):
+        message = self.__format_message(mail)
         if len(message) >= 16383:
-            file_ids.append(self.upload_file(channel_id, 'full_body.txt', message.encode('utf-8')))
+            file_ids.append(self.__upload_file(channel_id, 'full_body.txt', message.encode('utf-8')))
             message = message[:16383]
+        self.__execute_post(channel_id, file_ids, message)
+
+    def __execute_post(self, channel_id, file_ids, message):
         self.driver.posts.create_post(options={
             'channel_id': channel_id,
             'message': message,
             'file_ids': file_ids
         })
 
-    def format_message(self, mail):
+    def __format_message(self, mail):
         return dedent('''
         ```
         from: {}
@@ -122,13 +136,23 @@ class MattermostClient:
         ```
         '''.format(mail._origin_from, mail._date, mail._subject.strip())).strip() + '\n' + dedent(mail._body)
 
-    def check_if_upload_file(self, channel_id, mail: MailModel):
+    def __check_if_upload_file(self, channel_id, mail: MailModel):
         if len(mail._attachments) <= 0:
             return []
         file_ids = []
         for attachment in mail._attachments:
-            file_ids.append(self.upload_file(channel_id, attachment['name'], attachment['data']))
+            file_ids.append(self.__upload_file(channel_id, attachment['name'], attachment['data']))
         return file_ids
 
-    def upload_file(self, channel_id, name, data):
-        return self.driver.files.upload_file(channel_id, {'files': (name, data)})['file_infos'][0]['id']
+    def __upload_file(self, channel_id, name, data):
+        return self.driver.files.__upload_file(channel_id, {'files': (name, data)})['file_infos'][0]['id']
+
+    def __error_post(self, mail, error):
+        channel_id = self.__get_channel_id_if_create_channel('error')
+        self.__execute_post(channel_id, dedent('''
+        ```
+        from: {}
+        date: {}
+        subject: {}
+        ```
+        '''.format(mail._origin_from, mail._date, mail._subject.strip())).strip() + '\n' + dedent(error), [])
