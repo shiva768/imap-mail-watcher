@@ -10,12 +10,13 @@ slackが使えなくて、メール地獄に嵌っている人のためツール
 
 ## Requirement
 ### packages
-- PyYAML/4.1
-- mattermostdriver/5.0.0
-- requests/2.19.1
+- PyYAML/3.13
+- mattermostdriver/6.1.2
+- requests/2.21.0
 ### environment
 メールがimap  
-exchangeも多分大体使えるけど、検証しておりません
+exchangeも多分大体使える  
+むしろ動作検証は会社のexchangeでやっています
 
 ## Usage
 1. setting.ymlを設定する  
@@ -32,7 +33,7 @@ exchangeも多分大体使えるけど、検証しておりません
       - name: <unique name>
         mattermost:
           token: <mattermost token>
-          team_id: <teamname>
+          team_name: <teamname>
         imap:
           host: <hostname>
           user: <username>
