@@ -34,8 +34,11 @@ class PushReceiver:
             if strip_line.endswith(b'EXISTS'):
                 self.callback()
             elif strip_line.find(b'BYE') >= 0:
+                self.listen()
+            elif len(strip_line) <= 0:
+                LOGGER.info('reconnect')
+                self.imap.logout()
                 self.__connect()
-
         except KeyboardInterrupt as k:
             # self.__del__ # 多分呼ばなくて呼ばれるはず
             raise k

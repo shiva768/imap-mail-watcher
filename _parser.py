@@ -1,3 +1,5 @@
+import re
+from typing import List
 from email import message_from_bytes
 from email.header import decode_header, make_header
 from email.message import EmailMessage
@@ -5,12 +7,14 @@ from logging import getLogger
 
 from dateutil.parser import parse as date_parse
 
+from mail_model import MailModel
+
 """ logger setting """
 LOGGER = getLogger('imap-mail-watcher').getChild('parser')
 """ /logger setting """
 
 
-class MailParser():
+class MailParser:
 
     def __init__(self, uid, origin):
         self.content = None
@@ -22,22 +26,31 @@ class MailParser():
         LOGGER.info("__parse: {}".format(self.origin))
         _mail = message_from_bytes(self.origin)  # type: EmailMessage
 
-        date = date_parse(_mail['Date'])
-        mail_from = self.__decode_header(_mail['From'])
-        mail_to = self.__decode_header(_mail['To'])
-        subject = self.__decode_header(_mail['Subject'])
-        LOGGER.info("{0}:::::{1}".format(_mail.get_content_type(), subject))
+        _date = date_parse(_mail['Date'])
+        _origin_from = self.__decode_header(_mail['From'])
+        _from = self.__decode_header_addresses(_mail['From'])
+        _to = self.__decode_header_addresses(_mail['To'])
+        _cc = self.__decode_header_addresses(_mail['Cc'])
+        _bcc = self.__decode_header_addresses(_mail['Bcc'])
+        _subject = self.__decode_header(_mail['Subject'])
+        LOGGER.info("{0}:::::{1}".format(_mail.get_content_type(), _subject))
         self.__parse_body(_mail)
-        LOGGER.debug("date:{0}".format(date))
-        LOGGER.debug("from:{0}".format(mail_from))
-        LOGGER.debug("to:{0}".format(mail_to))
-        LOGGER.debug("subject:{0}".format(subject))
+        LOGGER.debug("date:{0}".format(_date))
+        LOGGER.debug("from:{0}".format(_from))
+        LOGGER.debug("to:{0}".format(_to))
+        LOGGER.debug("cc:{0}".format(_cc))
+        LOGGER.debug("bcc:{0}".format(_bcc))
+        LOGGER.debug("subject:{0}".format(_subject))
         LOGGER.debug("body:{0}".format(self.content))
-        return self.MailModel(self.uid, date, mail_from, mail_to, subject, self.content, self.attachments)
+        return MailModel(self.uid, _date, _from, _to, _cc, _bcc, _subject, self.content, self.attachments, _origin_from)
 
     @staticmethod
     def __decode_header(header):
         return str(make_header(decode_header(header)))
+
+    @staticmethod
+    def __decode_header_addresses(header) -> List[str]:
+        return re.findall('<([^<>]+)>', MailParser.__decode_header(header)) if header is not None else ['']
 
     def __parse_body(self, email_message: EmailMessage):
         if not email_message.is_multipart():
@@ -80,14 +93,3 @@ class MailParser():
 
     def __parse(self, _byte, encoding, error_handle='replace'):
         return _byte.decode(encoding=encoding, errors=error_handle)
-
-    class MailModel:
-
-        def __init__(self, uid, date, mail_from, mail_to, subject, body, attachments):
-            self.uid = uid
-            self.date = date
-            self.mail_from = mail_from
-            self.mail_to = mail_to
-            self.subject = subject
-            self.body = body
-            self.attachments = attachments

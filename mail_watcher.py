@@ -13,7 +13,6 @@ LOGGER = getLogger('imap-mail-watcher').getChild('watcher')
 UID_REGEX = re.compile(b'UID ([0-9]+)')
 SEQ_REGEX = re.compile(b'messages ([0-9]+)')
 
-
 class MailWatcher:
 
     def __init__(self, user, mattermost, stop):
@@ -72,7 +71,7 @@ class MailWatcher:
     def watch(self):
         def callback():
             LOGGER.debug("current uid:{}".format(self.current_uid))
-            status, data = self.imap.uid('fetch', "{}:*".format(self.current_uid.decode('utf-8')), '(RFC822)')
+            status, data = self.imap.uid('fetch', "{}:*".format(self.current_uid.decode('utf-8')), 'BODY.PEEK[]')
             LOGGER.debug("fetch status: {}, data: {}".format(status, data))
             if status == 'NO':
                 return
@@ -81,6 +80,9 @@ class MailWatcher:
         self.receiver = PushReceiver(self.imap_setting, callback)
         try:
             self.__watch()
+        except TimeoutError:
+            LOGGER.info('timeout. reconnect')
+            self.watch()
         except KeyboardInterrupt:
             LOGGER.info("interrupt")
             self.stop()

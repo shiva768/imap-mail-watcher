@@ -1,85 +1,134 @@
 from enum import Enum
+from textwrap import dedent
 from logging import getLogger
 
 from mattermostdriver import Driver
+from mattermostdriver.exceptions import ResourceNotFound
+
+from mail_model import MailModel
 
 """ logger setting """
 LOGGER = getLogger('imap-mail-watcher').getChild('mattermost')
 """ /logger setting """
+EXCLUDE_MAIL_PROPERTY = ['_uid', '_date', '_attachments']
 
 
 class MattermostClient:
-    def __init__(self, mattermost_setting, token, distribute):
+    def __init__(self, mattermost_setting, mattermost_user_setting, distributes):
         self.driver = Driver({
             'url': mattermost_setting['url'],
-            'token': token,
+            'token': mattermost_user_setting['token'],
             'scheme': mattermost_setting['scheme'],
             'port': mattermost_setting['port'],
             'basepath': mattermost_setting['basepath'],
             'timeout': mattermost_setting['timeout']
         })
+        team_name = mattermost_user_setting['team_name']
         self.driver.login()
-        self.distribute = distribute
+        self.distributes = distributes
+        self.team_id = self.driver.teams.get_team_by_name(team_name)['id']
 
     def post(self, mail):
-        channel = self.__distributing(mail)
-        LOGGER.info("{}, {}".format(channel, mail))
+        try:
+            channel_name = self.__distributing(mail)
+            LOGGER.info("{}, {}".format(channel_name, mail))
+            if channel_name == 'drops':
+                return
+            self.api_process(channel_name, mail)
+        except Exception as e:
+            LOGGER.error(e)
 
     def __distributing(self, mail):
-        if 'drops' in self.distribute:
-            for _filter in self.distribute['drops']:
-                if self.__common_distributing(mail, _filter):
-                    return 'drops'
+        if 'drops' in self.distributes:
+            for _filter_set in self.distributes['drops']:
+                result = self.__common_distributing(mail, _filter_set, 'drops')
+                if result is not None:
+                    LOGGER.debug("match rule {}".format(_filter_set))
+                    return result
 
-        if 'catches' in self.distribute:
-            for _filter_set in self.distribute['catches']:
+        if 'catches' in self.distributes:
+            for _filter_set in self.distributes['catches']:
                 channel_name = _filter_set['channel_name']
-                for _filter in _filter_set['rule']:
-                    if self.__common_distributing(mail, _filter):
-                        return channel_name
+                result = self.__common_distributing(mail, _filter_set, channel_name)
+                if result is not None:
+                    LOGGER.debug("match rule {}".format(_filter_set))
+                    return result
 
-    def __common_distributing(self, mail, _filter):
-        pattern = self.Pattern(_filter['pattern']) if 'pattern' in _filter else self.Pattern.MATCH
-        conditions = _filter['condition']
-        for key in conditions:
-            if pattern.match(conditions[key], self.__get_property(mail, key)):
-                return True
+    def __common_distributing(self, mail, _filter_set, channel_name):
+        if 'rule' in _filter_set:
+            for _rule in _filter_set['rule']:
+                if self.__match(mail, _rule):
+                    return channel_name
+        elif self.__match(mail, _filter_set):
+            return channel_name
+
+    def __match(self, mail, _rule):
+        pattern = self.Pattern(_rule['pattern']) if 'pattern' in _rule else self.Pattern.MATCH
+        conditions = _rule['condition']
+        if all([pattern.match(conditions[key], self.__get_property(mail, key)) for key in conditions]):
+            return True
         return False
 
     def __get_property(self, mail, name):
-        _name = 'mail_' + name if name in ['to', 'from'] else name
-        if _name == 'any':
-            return list(mail.__dict__.values())
-        return [getattr(mail, _name)]
+        if name == 'any':
+            return mail.get_all_property()
+        return [mail.get_property('_' + name)]
 
     class Pattern(Enum):
         MATCH = 'match'
         SEARCH = 'search'
 
-        def match(self, condtion: str, values: list):
+        def match(self, condition: str, values: list):
             if self == self.MATCH:
-                return condtion in values
-            return [v.find(condtion) for v in values] > 0
+                return condition in values
+            return any([condition in str(v) for v in values])
 
-    # def api_process(yml):
-    #     MATTERMOST_DRIVER.login()
-    #     create_channel(yml.get('channels').keys())
-    #
-    # def create_channel(channels: dict):
-    #     LOGGER.info(channels)
-    #     exist_channels = MATTERMOST_DRIVER.channels.get_public_channels(TEAM_ID)
-    #     for channel in channels:
-    #         found = False
-    #         for exist_channel in exist_channels:
-    #             if exist_channel['name'] == channel:
-    #                 found = True
-    #         if not found:
-    #             ret = MATTERMOST_DRIVER.channels.create_channel(options={
-    #                 'team_id': TEAM_ID,
-    #                 'name': channel,
-    #                 'display_name': channel,
-    #                 'type': 'O'
-    #             })
-    #             LOGGER.info(ret)
-    #
-    #     MATTERMOST_DRIVER.channels.create_channel()
+    def api_process(self, channel_name, mail):
+
+        channel_id = self.get_channel_id_if_create_channel(channel_name)
+        file_ids = self.check_if_upload_file(channel_id, mail)
+        self.create_message(channel_id, mail, file_ids)
+
+    def get_channel_id_if_create_channel(self, channel_name):
+        try:
+            channel = self.driver.channels.get_channel_by_name(self.team_id, channel_name)
+            return channel['id']
+        except ResourceNotFound:
+            channel = self.driver.channels.create_channel(options={
+                'team_id': self.team_id,
+                'name': channel_name,
+                'display_name': channel_name,
+                'type': 'O'
+            })
+            return channel['id']
+
+    def create_message(self, channel_id, mail, file_ids):
+        message = self.format_message(mail)
+        if len(message) >= 16383:
+            file_ids.append(self.upload_file(channel_id, 'full_body.txt', message.encode('utf-8')))
+            message = message[:16383]
+        self.driver.posts.create_post(options={
+            'channel_id': channel_id,
+            'message': message,
+            'file_ids': file_ids
+        })
+
+    def format_message(self, mail):
+        return dedent('''
+        ```
+        from: {}
+        date: {}
+        subject: {}
+        ```
+        '''.format(mail._origin_from, mail._date, mail._subject.strip())).strip() + '\n' + dedent(mail._body)
+
+    def check_if_upload_file(self, channel_id, mail: MailModel):
+        if len(mail._attachments) <= 0:
+            return []
+        file_ids = []
+        for attachment in mail._attachments:
+            file_ids.append(self.upload_file(channel_id, attachment['name'], attachment['data']))
+        return file_ids
+
+    def upload_file(self, channel_id, name, data):
+        return self.driver.files.upload_file(channel_id, {'files': (name, data)})['file_infos'][0]['id']
