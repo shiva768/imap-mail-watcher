@@ -145,7 +145,7 @@ class MattermostClient:
         return file_ids
 
     def __upload_file(self, channel_id, name, data):
-        return self.driver.files.__upload_file(channel_id, {'files': (name, data)})['file_infos'][0]['id']
+        return self.driver.files.upload_file(channel_id, {'files': (name, data)})['file_infos'][0]['id']
 
     def __error_post(self, mail, error):
         channel_id = self.__get_channel_id_if_create_channel('error')
