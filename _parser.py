@@ -46,7 +46,12 @@ class MailParser:
 
     @staticmethod
     def __decode_header(header):
-        return str(make_header(decode_header(header)))
+        try:
+            return str(make_header(decode_header(header)))
+        except UnicodeDecodeError:
+            decoded = decode_header(header)
+            return "decode error {}".format(decoded[1][0].decode('utf-8'))
+
 
     @staticmethod
     def __decode_header_addresses(header) -> List[str]:

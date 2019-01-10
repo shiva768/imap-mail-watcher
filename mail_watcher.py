@@ -15,7 +15,7 @@ SEQ_REGEX = re.compile(b'messages ([0-9]+)')
 
 class MailWatcher:
 
-    def __init__(self, user, mattermost, stop):
+    def __init__(self, user, mattermost, stop, start_uid):
         self.imap_setting = user['imap']
         seq_no = self.__connect()
         self.mattermost = mattermost
@@ -23,11 +23,7 @@ class MailWatcher:
         self.receiver = None
         self.queue = Queue(20)
         self.stop = stop
-        if 'options' in self.imap_setting \
-                and 'start-uid' in self.imap_setting['options'] \
-                and self.imap_setting['options']['start-uid'] \
-                and len(self.imap_setting['options']['start-uid']) > 0:
-            start_uid = self.imap_setting['options']['start-uid']
+        if start_uid is not None:
             LOGGER.info("initialize fetch. start uid:{}".format(start_uid))
             self.__initialize_fetch(start_uid)
 
