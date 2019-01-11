@@ -80,6 +80,10 @@ class MailWatcher:
                 LOGGER.info('watcher timeout. reconnect')
                 self.__reconnect()
                 callback()
+            except ConnectionResetError:
+                LOGGER.info('watcher connection reset. reconnect')
+                self.__reconnect()
+                callback()
             except imaplib.IMAP4.abort:
                 LOGGER.info('watcher timeout? reconnect')
                 self.__reconnect()

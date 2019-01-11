@@ -41,6 +41,9 @@ class PushReceiver:
         except TimeoutError:
             LOGGER.info('receiver timeout. reconnect')
             self.__reconnect()
+        except ConnectionResetError:
+            LOGGER.info('receiver connection reset. reconnect')
+            self.__reconnect()
         except KeyboardInterrupt as k:
             # self.__del__ # 多分呼ばなくて呼ばれるはず
             raise k
