@@ -15,14 +15,13 @@ SEQ_REGEX = re.compile(b'messages ([0-9]+)')
 
 class MailWatcher:
 
-    def __init__(self, user, mattermost, stop, start_uid):
+    def __init__(self, user, mattermost, start_uid):
         self.imap_setting = user['imap']
         seq_no = self.__connect()
         self.mattermost = mattermost
         self.current_uid = self.__fetch_uid(seq_no)
         self.receiver = None
         self.queue = Queue(20)
-        self.stop = stop
         if start_uid is not None:
             LOGGER.info("initialize fetch. start uid:{}".format(start_uid))
             self.__initialize_fetch(start_uid)
@@ -91,7 +90,7 @@ class MailWatcher:
             self.__watch()
         except KeyboardInterrupt:
             LOGGER.info("interrupt")
-            self.stop()
+            return
 
     def __extract(self, data):
         for idx, d in enumerate(data):
