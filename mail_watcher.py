@@ -70,24 +70,25 @@ class MailWatcher:
 
     def watch(self):
         def callback():
-            LOGGER.debug("current uid:{}".format(self.current_uid))
-            status, data = self.imap.uid('fetch', "{}:*".format(self.current_uid.decode('utf-8')), 'BODY.PEEK[]')
-            LOGGER.debug("fetch status: {}, data: {}".format(status, data))
-            if status == 'NO':
-                return
-            self.__extract(data)
+            try:
+                LOGGER.debug("current uid:{}".format(self.current_uid))
+                status, data = self.imap.uid('fetch', "{}:*".format(self.current_uid.decode('utf-8')), 'BODY.PEEK[]')
+                LOGGER.debug("fetch status: {}, data: {}".format(status, data))
+                if status == 'NO':
+                    return
+                self.__extract(data)
+            except TimeoutError:
+                LOGGER.info('watcher timeout. reconnect')
+                self.__reconnect()
+                callback()
+            except imaplib.IMAP4.abort:
+                LOGGER.info('watcher timeout? reconnect')
+                self.__reconnect()
+                callback()
 
         self.receiver = PushReceiver(self.imap_setting, callback)
         try:
             self.__watch()
-        except TimeoutError:
-            LOGGER.info('watcher timeout. reconnect')
-            self.__reconnect()
-            self.watch()
-        except imaplib.IMAP4.abort:
-            LOGGER.info('watcher timeout? reconnect')
-            self.__reconnect()
-            self.watch()
         except KeyboardInterrupt:
             LOGGER.info("interrupt")
             self.stop()
