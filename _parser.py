@@ -23,7 +23,6 @@ class MailParser:
         self.origin = origin
 
     def mail_parse(self):
-        LOGGER.info("__parse: {}".format(self.origin))
         _mail = message_from_bytes(self.origin)  # type: EmailMessage
 
         _date = date_parse(_mail['Date'])

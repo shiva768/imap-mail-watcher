@@ -13,6 +13,7 @@ class PushReceiver:
         self.__connect()
 
     def __connect(self):
+        LOGGER.info('connecting')
         self.imap = imaplib.IMAP4_SSL(self.imap_setting['host'])
         self.imap.login(self.imap_setting['user'], self.imap_setting['password'])
         self.imap.select()
@@ -34,8 +35,6 @@ class PushReceiver:
             if strip_line.endswith(b'EXISTS'):
                 self.callback()
             elif strip_line.find(b'BYE') >= 0:
-                self.listen()
-            elif len(strip_line) <= 0:
                 LOGGER.info('reconnect')
                 self.__reconnect()
         except TimeoutError:
@@ -49,6 +48,7 @@ class PushReceiver:
             raise k
 
     def __close(self):
+        LOGGER.info('close connection')
         try:
             self.imap.close()
             self.imap.logout()

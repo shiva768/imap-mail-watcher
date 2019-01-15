@@ -1,8 +1,8 @@
 import imaplib
 import re
 from logging import getLogger
-from queue import Queue
 
+from cache_manager import CacheManager
 from mail_receiver import PushReceiver
 from _parser import MailParser
 
@@ -15,16 +15,21 @@ SEQ_REGEX = re.compile(b'messages ([0-9]+)')
 
 class MailWatcher:
 
-    def __init__(self, user, mattermost, start_uid):
+    def __init__(self, user, mattermost, start_uid, cache: CacheManager):
         self.imap_setting = user['imap']
+        self.username = user['name']
         seq_no = self.__connect()
         self.mattermost = mattermost
         self.current_uid = self.__fetch_uid(seq_no)
         self.receiver = None
-        self.queue = Queue(20)
+        self.cache = cache
         if start_uid is not None:
             LOGGER.info("initialize fetch. start uid:{}".format(start_uid))
             self.__initialize_fetch(start_uid)
+        elif cache.get(self.username) is not None:
+            cache_uid = cache.get(self.username)
+            LOGGER.info("cached uid. fetch. start uid:{}".format(cache_uid))
+            self.__initialize_fetch(cache_uid)
 
     def __connect(self):
         self.imap = imaplib.IMAP4_SSL(self.imap_setting['host'])
@@ -103,6 +108,7 @@ class MailWatcher:
                 if uid is None or uid == self.current_uid:
                     continue
                 self.current_uid = uid
+                self.cache.write_cache(self.username, self.current_uid)
                 message = data[idx - 1]
                 mail = MailParser(uid, message[1]).mail_parse()
                 self.mattermost.post(mail)
