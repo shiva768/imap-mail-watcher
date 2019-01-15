@@ -35,7 +35,7 @@ class MattermostClient:
             LOGGER.info("{}, {}".format(channel_name, mail))
             if channel_name == 'drops':
                 return
-            # self.__api_process(channel_name, mail)
+            self.__api_process(channel_name, mail)
         except Exception as e:
             LOGGER.error(e)
             try:
