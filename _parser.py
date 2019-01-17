@@ -41,7 +41,7 @@ class MailParser:
         LOGGER.debug("bcc:{0}".format(_bcc))
         LOGGER.debug("subject:{0}".format(_subject))
         LOGGER.debug("body:{0}".format(self.content))
-        return MailModel(self.uid, _date, _from, _to, _cc, _bcc, _subject, self.content, self.attachments, _origin_from)
+        return MailModel(self.uid.decode('utf-8'), _date, _from, _to, _cc, _bcc, _subject, self.content, self.attachments, _origin_from)
 
     @staticmethod
     def __decode_header(header):
