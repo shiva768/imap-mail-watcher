@@ -15,7 +15,7 @@ from setting_manager import SettingManager
 """ logger setting """
 LOGGER = getLogger('imap-mail-watcher')
 formatter = Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-LOGGER.setLevel(DEBUG)
+LOGGER.setLevel(INFO)
 stream_handler = StreamHandler()
 stream_handler.setFormatter(formatter)
 # file_handler = FileHandler(filename='/var/log/')
