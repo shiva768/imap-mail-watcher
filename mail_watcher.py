@@ -20,6 +20,7 @@ class MailWatcher:
     def watcher(user, mattermost, start_uid, cache):
         watcher = MailWatcher(user, mattermost, cache)
         watcher.initialize_fetch(start_uid)
+        watcher.watch()
 
     @staticmethod
     def once(user, mattermost, uid):
