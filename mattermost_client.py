@@ -11,6 +11,7 @@ from mail_model import MailModel
 LOGGER = getLogger('imap-mail-watcher').getChild('mattermost')
 """ /logger setting """
 EXCLUDE_MAIL_PROPERTY = ['_uid', '_date', '_attachments']
+MATTERMOST_POST_LIMIT_LENGTH = 16383
 
 
 class MattermostClient:
@@ -115,9 +116,9 @@ class MattermostClient:
 
     def __create_message(self, channel_id, mail, file_ids):
         message = self.__format_message(mail)
-        if len(message) >= 16383:
+        if len(message) >= MATTERMOST_POST_LIMIT_LENGTH:
             file_ids.append(self.__upload_file(channel_id, 'full_body.txt', message.encode('utf-8')))
-            message = message[:16383]
+            message = message[:MATTERMOST_POST_LIMIT_LENGTH]
         self.__execute_post(channel_id, file_ids, message)
 
     def __execute_post(self, channel_id, file_ids, message):
@@ -133,8 +134,9 @@ class MattermostClient:
         from: {}
         date: {}
         subject: {}
+        uid: {}
         ```
-        '''.format(mail._origin_from, mail._date, mail._subject.strip())).strip() + '\n' + dedent(mail._body)
+        '''.format(mail._origin_from, mail._date, mail._subject.strip(), mail._uid)).strip() + '\n' + dedent(mail._body)
 
     def __check_if_upload_file(self, channel_id, mail: MailModel):
         if len(mail._attachments) <= 0:
@@ -154,5 +156,6 @@ class MattermostClient:
         from: {}
         date: {}
         subject: {}
+        uid: {}
         ```
-        '''.format(mail._origin_from, mail._date, mail._subject.strip())).strip() + '\n' + dedent(error), [])
+        '''.format(mail._origin_from, mail._date, mail._subject.strip(), mail._uid)).strip() + '\n' + dedent(error), [])

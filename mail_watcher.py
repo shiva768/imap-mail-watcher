@@ -13,9 +13,20 @@ LOGGER = getLogger('imap-mail-watcher').getChild('watcher')
 UID_REGEX = re.compile(b'UID ([0-9]+)')
 SEQ_REGEX = re.compile(b'messages ([0-9]+)')
 
+
 class MailWatcher:
 
-    def __init__(self, user, mattermost, start_uid, cache: CacheManager):
+    @staticmethod
+    def watcher(user, mattermost, start_uid, cache):
+        watcher = MailWatcher(user, mattermost, cache)
+        watcher.initialize_fetch(start_uid)
+
+    @staticmethod
+    def once(user, mattermost, uid):
+        single_fetch = MailWatcher(user, mattermost, once=True)
+        single_fetch.once_fetch(uid)
+
+    def __init__(self, user, mattermost, cache: CacheManager = None, once=False):
         self.imap_setting = user['imap']
         self.username = user['name']
         seq_no = self.__connect()
@@ -23,13 +34,23 @@ class MailWatcher:
         self.current_uid = self.__fetch_uid(seq_no)
         self.receiver = None
         self.cache = cache
+        self.is_once = once
+
+    def initialize_fetch(self, start_uid):
         if start_uid is not None:
             LOGGER.info("initialize fetch. start uid:{}".format(start_uid))
             self.__initialize_fetch(start_uid)
-        elif cache.get(self.username) is not None:
-            cache_uid = cache.get(self.username)
+        elif self.cache is not None and self.cache.get(self.username) is not None:
+            cache_uid = int(self.cache.get(self.username)) + 1
             LOGGER.info("cached uid. fetch. start uid:{}".format(cache_uid))
-            self.__initialize_fetch(cache_uid)
+            self.__initialize_fetch(str(cache_uid))
+
+    def once_fetch(self, uid):
+        status, data = self.imap.uid('fetch', "{}".format(uid), '(RFC822)')
+        LOGGER.info("once fetch status: {}, data: {}".format(status, data))
+        if status == 'NO':
+            return
+        self.__extract(data)
 
     def __connect(self):
         self.imap = imaplib.IMAP4_SSL(self.imap_setting['host'])
@@ -75,7 +96,7 @@ class MailWatcher:
     def watch(self):
         def callback():
             try:
-                LOGGER.debug("current uid:{}".format(self.current_uid))
+                LOGGER.info("current uid:{}".format(self.current_uid))
                 status, data = self.imap.uid('fetch', "{}:*".format(self.current_uid.decode('utf-8')), 'BODY.PEEK[]')
                 LOGGER.debug("fetch status: {}, data: {}".format(status, data))
                 if status == 'NO':
@@ -108,10 +129,12 @@ class MailWatcher:
                 if uid is None or uid == self.current_uid:
                     continue
                 self.current_uid = uid
-                self.cache.write_cache(self.username, self.current_uid)
+                if not self.is_once:
+                    self.cache.write_cache(self.username, self.current_uid)
                 message = data[idx - 1]
                 mail = MailParser(uid, message[1]).mail_parse()
-                self.mattermost.post(mail)
+                if not self.is_once:
+                    self.mattermost.post(mail)
 
     def __watch(self):
         while True:
