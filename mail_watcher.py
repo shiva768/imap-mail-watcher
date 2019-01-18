@@ -147,12 +147,11 @@ class MailWatcher:
                 if uid is None or uid == self.current_uid:
                     continue
                 self.current_uid = uid
-                if not self.is_once:
-                    self.cache.write_cache(self.username, self.current_uid)
                 message = data[idx - 1]
                 mail = MailParser(uid, message[1]).mail_parse()
                 if not self.is_once and not bool(environ.get('DEBUG')):
                     self.mattermost.post(mail)
+                    self.cache.write_cache(self.username, self.current_uid)
 
     def __watch(self):
         while True:
