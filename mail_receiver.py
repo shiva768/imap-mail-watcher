@@ -13,7 +13,7 @@ class PushReceiver:
         self.__connect()
 
     def __connect(self):
-        LOGGER.info('connecting')
+        LOGGER.debug('connecting')
         self.imap = imaplib.IMAP4_SSL(self.imap_setting['host'])
         self.imap.login(self.imap_setting['user'], self.imap_setting['password'])
         self.imap.select()
@@ -31,7 +31,7 @@ class PushReceiver:
         try:
             line = self.imap.readline()
             strip_line = line.strip()
-            LOGGER.info(strip_line)
+            LOGGER.debug(strip_line)
             if strip_line.endswith(b'EXISTS'):
                 self.callback()
             elif strip_line.find(b'BYE') >= 0:
@@ -48,7 +48,7 @@ class PushReceiver:
             raise k
 
     def __close(self):
-        LOGGER.info('close connection')
+        LOGGER.debug('close connection')
         try:
             self.imap.close()
             self.imap.logout()
