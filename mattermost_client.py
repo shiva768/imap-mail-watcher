@@ -34,13 +34,11 @@ class MattermostClient:
         try:
             channel_name = self.__distributing(mail)
             LOGGER.info("{}, {}".format(channel_name, mail))
-            if channel_name == 'drops':
-                return
             self.__api_process(channel_name, mail)
         except Exception as e:
             LOGGER.error(e)
             try:
-                self.__error_post(mail, e)
+                self.__simple_post(mail, 'error', e)
             except Exception as e2:
                 LOGGER.error(e2)
 
@@ -91,6 +89,9 @@ class MattermostClient:
             return any([condition in str(v) for v in values])
 
     def __api_process(self, channel_name, mail):
+        if channel_name == 'drops':
+            self.__simple_post(mail, 'drops')
+            return
         channel_id = self.__get_channel_id_if_create_channel(channel_name)
         file_ids = self.__check_if_upload_file(channel_id, mail)
         self.__create_message(channel_id, mail, file_ids)
@@ -149,13 +150,16 @@ class MattermostClient:
     def __upload_file(self, channel_id, name, data):
         return self.driver.files.upload_file(channel_id, {'files': (name, data)})['file_infos'][0]['id']
 
-    def __error_post(self, mail, error):
-        channel_id = self.__get_channel_id_if_create_channel('error')
-        self.__execute_post(channel_id, dedent('''
-        ```
-        from: {}
-        date: {}
-        subject: {}
-        uid: {}
-        ```
-        '''.format(mail._origin_from, mail._date, mail._subject.strip(), mail._uid)).strip() + '\n' + dedent(error), [])
+    def __simple_post(self, mail, channel_name, error=None):
+        channel_id = self.__get_channel_id_if_create_channel(channel_name)
+        message = dedent('''
+                ```
+                from: {}
+                date: {}
+                subject: {}
+                uid: {}
+                ```
+                '''.format(mail._origin_from, mail._date, mail._subject.strip(), mail._uid)).strip()
+        if error is not None:
+            message += '\n' + dedent(error)
+        self.__execute_post(channel_id, message, [])
