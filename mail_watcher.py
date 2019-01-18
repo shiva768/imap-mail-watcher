@@ -1,17 +1,19 @@
 import imaplib
 import re
-from logging import getLogger
+from logging import getLogger, Logger
 
 from cache_manager import CacheManager
 from mail_receiver import PushReceiver
 from _parser import MailParser
+from mattermost_client import MattermostClient
 
 """ logger setting """
-LOGGER = getLogger('imap-mail-watcher').getChild('watcher')
+LOGGER: Logger = getLogger('imap-mail-watcher').getChild('watcher')
 """ /logger setting """
 
 UID_REGEX = re.compile(b'UID ([0-9]+)')
 SEQ_REGEX = re.compile(b'messages ([0-9]+)')
+LOGIN_FAILED_LIMIT = 5
 
 
 class MailWatcher:
@@ -27,7 +29,7 @@ class MailWatcher:
         single_fetch = MailWatcher(user, mattermost, once=True)
         single_fetch.once_fetch(uid)
 
-    def __init__(self, user, mattermost, cache: CacheManager = None, once=False):
+    def __init__(self, user, mattermost: MattermostClient, cache: CacheManager = None, once=False):
         self.imap_setting = user['imap']
         self.username = user['name']
         seq_no = self.__connect()
@@ -36,6 +38,7 @@ class MailWatcher:
         self.receiver = None
         self.cache = cache
         self.is_once = once
+        self.login_failed_count = 0
 
     def initialize_fetch(self, start_uid):
         if start_uid is not None:
@@ -55,11 +58,24 @@ class MailWatcher:
 
     def __connect(self):
         self.imap = imaplib.IMAP4_SSL(self.imap_setting['host'])
-        self.imap.login(self.imap_setting['user'], self.imap_setting['password'])
+        self.__login()
         status, seq_no = self.imap.select()
         if status != 'OK':
             raise Exception('response error')
         return seq_no[0]
+
+    def __login(self):
+        try:
+            self.imap.login(self.imap_setting['user'], self.imap_setting['password'])
+            self.login_failed_count = 0
+        except Exception as e:
+            self.login_failed_count += 1
+            LOGGER.error('login failed. and retry.', error=e, count=self.login_failed_count)
+            if self.login_failed_count <= LOGIN_FAILED_LIMIT:
+                self.__login()
+                return
+            self.mattermost.error_post('login failed limit')
+            raise e
 
     def __initialize_fetch(self, start_uid: str):
         status, data = self.imap.uid('fetch', "{}:*".format(start_uid), '(RFC822)')

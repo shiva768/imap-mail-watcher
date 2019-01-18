@@ -42,6 +42,9 @@ class MattermostClient:
             except Exception as e2:
                 LOGGER.error(e2)
 
+    def error_post(self, text):
+        self.__simple_post(None, 'error', text)
+
     def __distributing(self, mail):
         if 'drops' in self.distributes:
             for _filter_set in self.distributes['drops']:
@@ -150,8 +153,11 @@ class MattermostClient:
     def __upload_file(self, channel_id, name, data):
         return self.driver.files.upload_file(channel_id, {'files': (name, data)})['file_infos'][0]['id']
 
-    def __simple_post(self, mail, channel_name, error=None):
+    def __simple_post(self, mail, channel_name, error=None, plain_text=None):
         channel_id = self.__get_channel_id_if_create_channel(channel_name)
+        if mail is None:
+            self.__execute_post(channel_id, [], plain_text)
+            return
         message = dedent('''
                 ```
                 from: {}
