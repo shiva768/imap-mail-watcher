@@ -162,4 +162,4 @@ class MattermostClient:
                 '''.format(mail._origin_from, mail._date, mail._subject.strip(), mail._uid)).strip()
         if error is not None:
             message += '\n' + dedent(error)
-        self.__execute_post(channel_id, message, [])
+        self.__execute_post(channel_id, [], message)
