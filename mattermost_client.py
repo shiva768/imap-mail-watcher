@@ -123,9 +123,9 @@ class MattermostClient:
         if len(message) >= MATTERMOST_POST_LIMIT_LENGTH:
             file_ids.append(self.__upload_file(channel_id, 'full_body.txt', message.encode('utf-8')))
             message = message[:MATTERMOST_POST_LIMIT_LENGTH]
-        self.__execute_post(channel_id, file_ids, message)
+        self.__execute_post(channel_id, message, file_ids)
 
-    def __execute_post(self, channel_id, file_ids, message):
+    def __execute_post(self, channel_id, message, file_ids=[]):
         self.driver.posts.create_post(options={
             'channel_id': channel_id,
             'message': message,
@@ -156,7 +156,7 @@ class MattermostClient:
     def __simple_post(self, mail, channel_name, error=None, plain_text=None):
         channel_id = self.__get_channel_id_if_create_channel(channel_name)
         if mail is None:
-            self.__execute_post(channel_id, [], plain_text)
+            self.__execute_post(channel_id, plain_text)
             return
         message = dedent('''
                 ```
@@ -168,4 +168,4 @@ class MattermostClient:
                 '''.format(mail._origin_from, mail._date, mail._subject.strip(), mail._uid)).strip()
         if error is not None:
             message += '\n' + dedent(error)
-        self.__execute_post(channel_id, [], message)
+        self.__execute_post(channel_id, message)
