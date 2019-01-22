@@ -4,6 +4,7 @@ from email import message_from_bytes
 from email.header import decode_header, make_header
 from email.message import EmailMessage
 from logging import getLogger
+from html2text import HTML2Text
 
 from dateutil.parser import parse as date_parse
 
@@ -12,7 +13,8 @@ from mail_model import MailModel
 """ logger setting """
 LOGGER = getLogger('imap-mail-watcher').getChild('parser')
 """ /logger setting """
-
+html2text = HTML2Text()
+html2text.ignore_links = False
 
 class MailParser:
 
@@ -84,6 +86,8 @@ class MailParser:
 
         if msg_encoding is not None:
             self.content = self.__parse(email_message.get_payload(decode=True), msg_encoding)
+            if email_message['Content-Type'].split(';')[0].index('text/html') >= 0:
+                self.content = html2text.handle(self.content) + ' \n(converted)'
             return
         try:
             self.content = self.__parse(email_message.get_payload(decode=True), 'utf-8', 'strict')
