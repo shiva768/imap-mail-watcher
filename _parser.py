@@ -23,6 +23,7 @@ class MailParser:
         self.attachments = []
         self.uid = uid
         self.origin = origin
+        self.converted = False
 
     def mail_parse(self):
         _mail = message_from_bytes(self.origin)  # type: EmailMessage
@@ -43,6 +44,8 @@ class MailParser:
         LOGGER.debug("bcc:{0}".format(_bcc))
         LOGGER.debug("subject:{0}".format(_subject))
         LOGGER.debug("body:{0}".format(self.content))
+        if self.converted:
+            _subject += ' \n(converted)'
         return MailModel(self.uid.decode('utf-8'), _date, _from, _to, _cc, _bcc, _subject, self.content, self.attachments, _origin_from)
 
     @staticmethod
@@ -87,7 +90,8 @@ class MailParser:
         if msg_encoding is not None:
             self.content = self.__parse(email_message.get_payload(decode=True), msg_encoding)
             if email_message['Content-Type'].split(';')[0].find('text/html') >= 0:
-                self.content = html2text.handle(self.content) + ' \n(converted)'
+                self.content = html2text.handle(self.content)
+                self.converted = True
             return
         try:
             self.content = self.__parse(email_message.get_payload(decode=True), 'utf-8', 'strict')
