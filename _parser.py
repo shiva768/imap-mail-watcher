@@ -86,7 +86,7 @@ class MailParser:
 
         if msg_encoding is not None:
             self.content = self.__parse(email_message.get_payload(decode=True), msg_encoding)
-            if email_message['Content-Type'].split(';')[0].index('text/html') >= 0:
+            if email_message['Content-Type'].split(';')[0].find('text/html') >= 0:
                 self.content = html2text.handle(self.content) + ' \n(converted)'
             return
         try:
