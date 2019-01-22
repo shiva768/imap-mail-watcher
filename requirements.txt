@@ -1,5 +1,6 @@
 certifi==2018.11.29
 chardet==3.0.4
+html2text==2018.1.9
 idna==2.8
 mattermostdriver==6.1.2
 python-dateutil==2.7.5
