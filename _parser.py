@@ -26,15 +26,22 @@ class MailParser:
         self.converted = False
 
     def mail_parse(self):
-        _mail = message_from_bytes(self.origin)  # type: EmailMessage
+        try:
+            return self.__mail_parse()
+        except Exception as e:
+            LOGGER.error('parse error', e)
+            raise e
 
+    def __mail_parse(self):
+        _mail = message_from_bytes(self.origin)  # type: EmailMessage
+        uid = self.uid.decode('utf-8')
         _date = date_parse(_mail['Date'])
-        _origin_from = self.__decode_header(_mail['From'])
-        _from = self.__decode_header_addresses(_mail['From'])
-        _to = self.__decode_header_addresses(_mail['To'])
-        _cc = self.__decode_header_addresses(_mail['Cc'])
-        _bcc = self.__decode_header_addresses(_mail['Bcc'])
-        _subject = self.__decode_header(_mail['Subject'])
+        _origin_from = self.__decode_header(_mail, 'From')
+        _from = self.__decode_header_addresses(_mail, 'From')
+        _to = self.__decode_header_addresses(_mail, 'To')
+        _cc = self.__decode_header_addresses(_mail, 'Cc')
+        _bcc = self.__decode_header_addresses(_mail, 'Bcc')
+        _subject = self.__decode_header(_mail, 'Subject', uid)
         LOGGER.info("{0}:::::{1}".format(_mail.get_content_type(), _subject))
         self.__parse_body(_mail)
         LOGGER.debug("date:{0}".format(_date))
@@ -46,20 +53,25 @@ class MailParser:
         LOGGER.debug("body:{0}".format(self.content))
         if self.converted:
             _subject += ' \n(converted)'
-        return MailModel(self.uid.decode('utf-8'), _date, _from, _to, _cc, _bcc, _subject, self.content, self.attachments, _origin_from)
+        return MailModel(uid, _date, _from, _to, _cc, _bcc, _subject, self.content, self.attachments, _origin_from)
 
     @staticmethod
-    def __decode_header(header):
+    def __decode_header(mail, target, uid=None):
+        header = mail[target]
         try:
             return str(make_header(decode_header(header)))
         except UnicodeDecodeError:
             decoded = decode_header(header)
-            return "decode error {}".format(decoded[1][0].decode('utf-8'))
+            try:
+                return "{} decode error {}".format(target, decoded[1][0].decode('utf-8'))
+            except:
+                return "{} decode error {}".format(target, uid)
 
 
     @staticmethod
-    def __decode_header_addresses(header) -> List[str]:
-        return re.findall('<([^<>]+)>', MailParser.__decode_header(header)) if header is not None else ['']
+    def __decode_header_addresses(mail, target) -> List[str]:
+        header = mail[target]
+        return re.findall('<([^<>]+)>', MailParser.__decode_header(mail, target)) if header is not None else ['']
 
     def __parse_body(self, email_message: EmailMessage):
         if not email_message.is_multipart():
