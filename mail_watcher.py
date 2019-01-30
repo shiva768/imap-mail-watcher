@@ -5,7 +5,7 @@ from logging import getLogger, Logger
 
 from cache_manager import CacheManager
 from mail_receiver import PushReceiver
-from _parser import MailParser
+from parser import MailParser
 from mattermost_client import MattermostClient
 
 """ logger setting """
