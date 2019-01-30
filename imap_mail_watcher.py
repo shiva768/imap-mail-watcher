@@ -1,11 +1,9 @@
 #! /usr/bin/python
 # -*- coding: utf-8 -*-
 
-from concurrent.futures import ThreadPoolExecutor
-from logging import INFO, DEBUG, Formatter, StreamHandler, FileHandler, getLogger
 from argparse import ArgumentParser
-
-import sys
+from concurrent.futures import ThreadPoolExecutor
+from logging import INFO, Formatter, StreamHandler, getLogger
 
 from cache_manager import CacheManager
 from mail_watcher import MailWatcher
@@ -54,7 +52,7 @@ def __parallel_process(user, common, start_uid, cache):
 
 
 def __once(user, common, uid):
-    client = MattermostClient(common['mattermost'], user['name'], user['mattermost'], user['distribute'])
+    client = MattermostClient(common['mattermost'], user['name'], user['mattermost'], user['distribute'], once=True)
     MailWatcher.once(user, client, uid)
 
 

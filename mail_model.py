@@ -1,19 +1,19 @@
 class MailModel:
 
-    def __init__(self, uid, date, _from, _to, _cc, _bcc, subject, body, attachments, origin):
-        self._uid = uid
-        self._date = date
-        self._from = _from
-        self._to = _to
-        self._cc = _cc
-        self._bcc = _bcc
-        self._subject = subject
-        self._body = body
-        self._attachments = attachments
-        self._origin_from = origin
+    def __init__(self, uid, date, from_, to_, cc_, bcc_, subject, body, attachments, origin):
+        self.uid_ = uid
+        self.date_ = date
+        self.from_ = from_
+        self.to_ = to_
+        self.cc_ = cc_
+        self.bcc_ = bcc_
+        self.subject_ = subject
+        self.body_ = body
+        self.attachments_ = attachments
+        self.origin_from_ = origin
 
     def get_property(self, key):
-        if key in ['_from', '_to', '_cc', '_bcc']:
+        if key in ['from_', 'to_', 'cc_', 'bcc_']:
             return getattr(self, key)
         return [getattr(self, key)]
 
@@ -22,4 +22,4 @@ class MailModel:
 
     def excludes_keys(self):
         keys = self.__dict__.keys()
-        return list(filter(lambda k: k not in ['_uid', '_attachments', '_origin_from'], keys))
+        return list(filter(lambda k: k not in ['uid_', 'attachments_', 'origin_from_'], keys))

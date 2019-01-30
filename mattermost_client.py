@@ -1,6 +1,7 @@
 from enum import Enum
-from textwrap import dedent
 from logging import getLogger
+from os import environ
+from textwrap import dedent
 
 from mattermostdriver import Driver
 from mattermostdriver.exceptions import ResourceNotFound
@@ -10,12 +11,12 @@ from mail_model import MailModel
 """ logger setting """
 LOGGER = getLogger('imap-mail-watcher').getChild('mattermost')
 """ /logger setting """
-EXCLUDE_MAIL_PROPERTY = ['_uid', '_date', '_attachments']
 MATTERMOST_POST_LIMIT_LENGTH = 16383
 
 
 class MattermostClient:
-    def __init__(self, mattermost_setting, username, mattermost_user_setting, distributes):
+
+    def __init__(self, mattermost_setting, username, mattermost_user_setting, distributes, once=False):
         self.driver = Driver({
             'url': mattermost_setting['url'],
             'token': mattermost_user_setting['token'],
@@ -29,12 +30,14 @@ class MattermostClient:
         self.driver.login()
         self.distributes = distributes
         self.team_id = self.driver.teams.get_team_by_name(team_name)['id']
+        self.once = once
 
     def post(self, mail):
         try:
             channel_name = self.__distributing(mail)
             LOGGER.info("{}, {}".format(channel_name, mail))
-            self.__api_process(channel_name, mail)
+            if not bool(environ.get('DEBUG')) and not self.once:
+                self.__api_process(channel_name, mail)
         except Exception as e:
             LOGGER.error(e)
             try:
@@ -70,26 +73,10 @@ class MattermostClient:
         elif self.__match(mail, _filter_set):
             return channel_name
 
-    def __match(self, mail, _rule):
-        pattern = self.Pattern(_rule['pattern']) if 'pattern' in _rule else self.Pattern.MATCH
-        conditions = _rule['condition']
-        if all([pattern.match(conditions[key], self.__get_property(mail, key)) for key in conditions]):
-            return True
-        return False
-
-    def __get_property(self, mail, name):
-        if name == 'any':
-            return mail.get_all_property()
-        return [mail.get_property('_' + name)]
-
-    class Pattern(Enum):
-        MATCH = 'match'
-        SEARCH = 'search'
-
-        def match(self, condition: str, values: list):
-            if self == self.MATCH:
-                return condition in values
-            return any([condition in str(v) for v in values])
+    def __match(self, mail, rule):
+        if type(rule['conditions']) is list:
+            return all([ConditionSet(condition_set).match(mail) for condition_set in rule['conditions']])
+        return ConditionSet(rule['conditions']).match(mail)
 
     def __api_process(self, channel_name, mail):
         if channel_name == 'drops':
@@ -143,10 +130,10 @@ class MattermostClient:
         '''.format(mail._origin_from, mail._date, mail._subject.strip(), mail._uid)).strip() + '\n' + dedent(mail._body)
 
     def __check_if_upload_file(self, channel_id, mail: MailModel):
-        if len(mail._attachments) <= 0:
+        if len(mail.attachments_) <= 0:
             return []
         file_ids = []
-        for attachment in mail._attachments:
+        for attachment in mail.attachments_:
             file_ids.append(self.__upload_file(channel_id, attachment['name'], attachment['data']))
         return file_ids
 
@@ -169,3 +156,30 @@ class MattermostClient:
         if error is not None:
             message += '\n' + dedent(error)
         self.__execute_post(channel_id, message)
+
+
+class ConditionSet:
+    def __init__(self, condition_set_):
+        self.pattern = Pattern(condition_set_['pattern']) if 'pattern' in condition_set_ else Pattern.MATCH
+        self.targets = self.filter_dict(lambda k, v: k != 'pattern', condition_set_)
+
+    def match(self, mail):
+        return all([self.pattern.match(self.targets[key], self.__get_property(mail, key)) for key in self.targets])
+
+    def __get_property(self, mail, name):
+        if name == 'any':
+            return mail.get_all_property()
+        return [mail.get_property(name + '_')]
+
+    def filter_dict(self, f, d):
+        return {k: v for k, v in d.items() if f(k, v)}
+
+
+class Pattern(Enum):
+    MATCH = 'match'
+    SEARCH = 'search'
+
+    def match(self, condition: str, values: list):
+        if self == self.MATCH:
+            return condition in values
+        return any([condition in str(v) for v in values])

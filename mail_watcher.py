@@ -1,12 +1,11 @@
-from os import environ
 import imaplib
 import re
 from logging import getLogger, Logger
 
 from cache_manager import CacheManager
 from mail_receiver import PushReceiver
-from parser import MailParser
 from mattermost_client import MattermostClient
+from parser import MailParser
 
 """ logger setting """
 LOGGER: Logger = getLogger('imap-mail-watcher').getChild('watcher')
@@ -27,10 +26,10 @@ class MailWatcher:
 
     @staticmethod
     def once(user, mattermost, uid):
-        single_fetch = MailWatcher(user, mattermost, once=True)
+        single_fetch = MailWatcher(user, mattermost)
         single_fetch.once_fetch(uid)
 
-    def __init__(self, user, mattermost: MattermostClient, cache: CacheManager = None, once=False):
+    def __init__(self, user, mattermost: MattermostClient, cache: CacheManager = None):
         self.imap_setting = user['imap']
         self.username = user['name']
         seq_no = self.__connect()
@@ -38,7 +37,6 @@ class MailWatcher:
         self.current_uid = self.__fetch_uid(seq_no)
         self.receiver = None
         self.cache = cache
-        self.is_once = once
         self.login_failed_count = 0
 
     def initialize_fetch(self, start_uid):
@@ -149,8 +147,8 @@ class MailWatcher:
                 self.current_uid = uid
                 message = data[idx - 1]
                 mail = MailParser(uid, message[1]).mail_parse()
-                if not self.is_once and not bool(environ.get('DEBUG')):
-                    self.mattermost.post(mail)
+                self.mattermost.post(mail)
+                if self.cache is not None:
                     self.cache.write_cache(self.username, self.current_uid)
 
     def __watch(self):

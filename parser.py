@@ -1,12 +1,12 @@
 import re
-from typing import List
 from email import message_from_bytes
 from email.header import decode_header, make_header
 from email.message import EmailMessage
 from logging import getLogger
-from html2text import HTML2Text
+from typing import List
 
 from dateutil.parser import parse as date_parse
+from html2text import HTML2Text
 
 from mail_model import MailModel
 
@@ -15,6 +15,7 @@ LOGGER = getLogger('imap-mail-watcher').getChild('parser')
 """ /logger setting """
 html2text = HTML2Text()
 html2text.ignore_links = False
+
 
 class MailParser:
 
@@ -66,7 +67,6 @@ class MailParser:
                 return "{} decode error {}".format(target, decoded[1][0].decode('utf-8'))
             except:
                 return "{} decode error {}".format(target, uid)
-
 
     @staticmethod
     def __decode_header_addresses(mail, target) -> List[str]:
