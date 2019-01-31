@@ -35,7 +35,7 @@ class MattermostClient:
     def post(self, mail):
         try:
             channel_name = self.__distributing(mail)
-            LOGGER.info("{}, {}".format(channel_name, mail))
+            LOGGER.info("{}::{}::{}".format(mail.uid_, channel_name, mail.subject_))
             if not bool(environ.get('DEBUG')) and not self.once:
                 self.__api_process(channel_name, mail)
         except Exception as e:
