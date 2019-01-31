@@ -162,9 +162,18 @@ class ConditionSet:
     def __init__(self, condition_set_):
         self.pattern = Pattern(condition_set_['pattern']) if 'pattern' in condition_set_ else Pattern.MATCH
         self.targets = self.filter_dict(lambda k, v: k != 'pattern', condition_set_)
+        self.match_case = condition_set_['case'] if 'case' in condition_set_ else False
 
     def match(self, mail):
-        return all([self.pattern.match(self.targets[key], self.__get_property(mail, key)) for key in self.targets])
+        return all([
+            self.pattern.match(self.targets[key].lower(), self.__lower_convert(self.__get_property(mail, key)))
+            for key in self.targets
+        ])
+
+    def __lower_convert(self, values: list):
+        if not self.match_case:
+            return list(map(lambda v: str(v).lower() if v is not None else v, values))
+        return values
 
     def __get_property(self, mail, name):
         if name == 'any':
