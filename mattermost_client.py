@@ -127,7 +127,7 @@ class MattermostClient:
         subject: {}
         uid: {}
         ```
-        '''.format(mail._origin_from, mail._date, mail._subject.strip(), mail._uid)).strip() + '\n' + dedent(mail._body)
+        '''.format(mail.origin_from_, mail.date_, mail.subject_.strip(), mail.uid_)).strip() + '\n' + dedent(mail.body_)
 
     def __check_if_upload_file(self, channel_id, mail: MailModel):
         if len(mail.attachments_) <= 0:
@@ -152,7 +152,7 @@ class MattermostClient:
                 subject: {}
                 uid: {}
                 ```
-                '''.format(mail._origin_from, mail._date, mail._subject.strip(), mail._uid)).strip()
+                '''.format(mail.origin_from_, mail.date_, mail.subject_.strip(), mail.uid_)).strip()
         if error is not None:
             message += '\n' + dedent(error)
         self.__execute_post(channel_id, message)
