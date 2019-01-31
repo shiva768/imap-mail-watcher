@@ -36,25 +36,25 @@ class MailParser:
     def __mail_parse(self):
         _mail = message_from_bytes(self.origin)  # type: EmailMessage
         uid = self.uid.decode('utf-8')
-        _date = date_parse(_mail['Date'])
-        _origin_from = self.__decode_header(_mail, 'From')
-        _from = self.__decode_header_addresses(_mail, 'From')
-        _to = self.__decode_header_addresses(_mail, 'To')
-        _cc = self.__decode_header_addresses(_mail, 'Cc')
-        _bcc = self.__decode_header_addresses(_mail, 'Bcc')
-        _subject = self.__decode_header(_mail, 'Subject', uid)
-        LOGGER.info("{0}:::::{1}".format(_mail.get_content_type(), _subject))
+        date_ = date_parse(_mail['Date'])
+        origin_from_ = self.__decode_header(_mail, 'From')
+        from_ = self.__decode_header_addresses(_mail, 'From')
+        to_ = self.__decode_header_addresses(_mail, 'To')
+        cc_ = self.__decode_header_addresses(_mail, 'Cc')
+        bcc_ = self.__decode_header_addresses(_mail, 'Bcc')
+        subject_ = self.__decode_header(_mail, 'Subject', uid)
+        LOGGER.info("{0}::{1}::{2}".format(uid, subject_, _mail.get_content_type()))
         self.__parse_body(_mail)
-        LOGGER.debug("date:{0}".format(_date))
-        LOGGER.debug("from:{0}".format(_from))
-        LOGGER.debug("to:{0}".format(_to))
-        LOGGER.debug("cc:{0}".format(_cc))
-        LOGGER.debug("bcc:{0}".format(_bcc))
-        LOGGER.debug("subject:{0}".format(_subject))
+        LOGGER.debug("date:{0}".format(date_))
+        LOGGER.debug("from:{0}".format(from_))
+        LOGGER.debug("to:{0}".format(to_))
+        LOGGER.debug("cc:{0}".format(cc_))
+        LOGGER.debug("bcc:{0}".format(bcc_))
+        LOGGER.debug("subject:{0}".format(subject_))
         LOGGER.debug("body:{0}".format(self.content))
         if self.converted:
-            _subject += ' \n(converted)'
-        return MailModel(uid, _date, _from, _to, _cc, _bcc, _subject, self.content, self.attachments, _origin_from)
+            subject_ += ' \n(converted)'
+        return MailModel(uid, date_, from_, to_, cc_, bcc_, subject_, self.content, self.attachments, origin_from_)
 
     @staticmethod
     def __decode_header(mail, target, uid=None):
