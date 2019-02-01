@@ -1,8 +1,6 @@
 import imaplib
 import re
 from logging import getLogger, Logger
-from types import FunctionType
-from typing import Dict
 
 from cache_manager import CacheManager
 from parser import MailParser
@@ -18,7 +16,7 @@ LOGIN_FAILED_LIMIT = 5
 
 class MailFetcher:
 
-    def __init__(self, user, store_functions: Dict[str, FunctionType], cache: CacheManager = None):
+    def __init__(self, user, store_functions: dict, cache: CacheManager = None):
         self.imap_setting = user['imap']
         self.username = user['name']
         self.store_functions = store_functions

@@ -8,7 +8,7 @@ LOGGER = getLogger('imap-mail-watcher').getChild('channel_select')
 """ /logger setting """
 
 
-class ChannelSelect:
+class MattermostChannelSelect:
 
     def __init__(self, distributes: dict):
         self.distributes = distributes

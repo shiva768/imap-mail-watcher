@@ -1,14 +1,15 @@
 #! /usr/bin/python
 # -*- coding: utf-8 -*-
-import threading
 from argparse import ArgumentParser
 from concurrent.futures import ThreadPoolExecutor
 from logging import INFO, Formatter, StreamHandler, getLogger
+from os import environ
 
 from cache_manager import CacheManager
-from channel_select import ChannelSelect
 from mail_fetcher import MailFetcher
+from mail_model import MailModel
 from mail_watcher import MailWatcher
+from mattermost_channel_select import MattermostChannelSelect
 from mattermost_client import MattermostClient
 from setting_manager import SettingManager
 
@@ -23,7 +24,7 @@ LOGGER.addHandler(stream_handler)
 """ /logger setting """
 
 parser = ArgumentParser()
-parser.add_argument('--once', help='debug')
+parser.add_argument('--once', help='single fetch')
 parser.add_argument('--start', help='Start fetch from the uid specified in the parameter.')
 
 
@@ -49,17 +50,46 @@ def main():
 
 
 def __parallel_process(user, common, start_uid, cache):
-    selector = ChannelSelect(user['distribute'])
+    selector = MattermostChannelSelect(user['distribute'])
+    if bool(environ.get('DRY')):
+        def dummy_post(mail: MailModel):
+            selector.select_channel(mail)
+
+        def error_post(text: str):
+            LOGGER.error(text)
+
+        __parallel_process_execute(user, start_uid, None, dummy_post, error_post)
+        return
+
     client = MattermostClient(common['mattermost'], user['name'], user['mattermost'], selector)
-    fetcher = MailFetcher(user, {'store': client.post, 'error': client.error_post}, cache)
+    __parallel_process_execute(user, start_uid, cache, client.post, client.error_post)
+
+
+def __parallel_process_execute(user, start_uid, cache, store_function, error_function):
+    fetcher = MailFetcher(user, {'store': store_function, 'error': error_function}, cache)
     fetcher.initialize_fetch(start_uid)
     watcher = MailWatcher(user['imap'], fetcher.fetch)
     watcher.listen()
 
 
 def __once(user, common, uid):
-    client = MattermostClient(common['mattermost'], user['name'], user['mattermost'], user['distribute'])
-    # MailFetcher.once(user, client, uid)
+    selector = MattermostChannelSelect(user['distribute'])
+    if bool(environ.get('DRY')):
+        def dummy_post(mail: MailModel):
+            selector.select_channel(mail)
+
+        def error_post(text: str):
+            LOGGER.error(text)
+
+        __once_execute(user, uid, dummy_post, error_post)
+        return
+    client = MattermostClient(common['mattermost'], user['name'], user['mattermost'], selector)
+    __once_execute(user, uid, client.post, client.error_post)
+
+
+def __once_execute(user, uid, store_function, error_function):
+    fetcher = MailFetcher(user, {'store': store_function, 'error': error_function})
+    fetcher.once_fetch(uid)
 
 
 if __name__ == '__main__':

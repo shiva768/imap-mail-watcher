@@ -1,13 +1,11 @@
-from enum import Enum
 from logging import getLogger
-from os import environ
 from textwrap import dedent
 
 from mattermostdriver import Driver
 from mattermostdriver.exceptions import ResourceNotFound
 
-from channel_select import ChannelSelect
 from mail_model import MailModel
+from mattermost_channel_select import MattermostChannelSelect
 
 """ logger setting """
 LOGGER = getLogger('imap-mail-watcher').getChild('mattermost')
@@ -17,7 +15,7 @@ MATTERMOST_POST_LIMIT_LENGTH = 16383
 
 class MattermostClient:
 
-    def __init__(self, mattermost_setting, username, mattermost_user_setting, selector: ChannelSelect, once=False):
+    def __init__(self, mattermost_setting, username, mattermost_user_setting, selector: MattermostChannelSelect):
         self.driver = Driver({
             'url': mattermost_setting['url'],
             'token': mattermost_user_setting['token'],
@@ -31,13 +29,11 @@ class MattermostClient:
         self.driver.login()
         self.selector = selector
         self.team_id = self.driver.teams.get_team_by_name(team_name)['id']
-        self.once = once
 
-    def post(self, mail):
+    def post(self, mail: MailModel):
         try:
             channel_name = self.selector.select_channel(mail)
-            if not bool(environ.get('DEBUG')) and not self.once:
-                self.__api_process(channel_name, mail)
+            self.__api_process(channel_name, mail)
         except Exception as e:
             LOGGER.error(e)
             try:
