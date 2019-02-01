@@ -33,7 +33,7 @@ def main():
     setting = SettingManager()
     args = parser.parse_args()
     if args.dry:
-        environ['DRY'] = True
+        environ['DRY'] = 'True'
     if args.once:
         __once(setting.users[0], setting.common, args.once)
         return
