@@ -61,6 +61,7 @@ def __parallel_process(user, common, start_uid, cache):
         def error_post(text: str):
             LOGGER.error(text)
 
+        LOGGER.info('dry')
         __parallel_process_execute(user, start_uid, None, dummy_post, error_post)
         return
 
@@ -84,6 +85,7 @@ def __once(user, common, uid):
         def error_post(text: str):
             LOGGER.error(text)
 
+        LOGGER.info('dry')
         __once_execute(user, uid, dummy_post, error_post)
         return
     client = MattermostClient(common['mattermost'], user['name'], user['mattermost'], selector)
