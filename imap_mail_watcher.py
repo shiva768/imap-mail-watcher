@@ -1,11 +1,13 @@
 #! /usr/bin/python
 # -*- coding: utf-8 -*-
-
+import threading
 from argparse import ArgumentParser
 from concurrent.futures import ThreadPoolExecutor
 from logging import INFO, Formatter, StreamHandler, getLogger
 
 from cache_manager import CacheManager
+from channel_select import ChannelSelect
+from mail_fetcher import MailFetcher
 from mail_watcher import MailWatcher
 from mattermost_client import MattermostClient
 from setting_manager import SettingManager
@@ -47,13 +49,17 @@ def main():
 
 
 def __parallel_process(user, common, start_uid, cache):
-    client = MattermostClient(common['mattermost'], user['name'], user['mattermost'], user['distribute'])
-    MailWatcher.watcher(user, client, start_uid, cache)
+    selector = ChannelSelect(user['distribute'])
+    client = MattermostClient(common['mattermost'], user['name'], user['mattermost'], selector)
+    fetcher = MailFetcher(user, {'store': client.post, 'error': client.error_post}, cache)
+    fetcher.initialize_fetch(start_uid)
+    watcher = MailWatcher(user['imap'], fetcher.fetch)
+    watcher.listen()
 
 
 def __once(user, common, uid):
-    client = MattermostClient(common['mattermost'], user['name'], user['mattermost'], user['distribute'], once=True)
-    MailWatcher.once(user, client, uid)
+    client = MattermostClient(common['mattermost'], user['name'], user['mattermost'], user['distribute'])
+    # MailFetcher.once(user, client, uid)
 
 
 if __name__ == '__main__':
