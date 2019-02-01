@@ -25,12 +25,15 @@ LOGGER.addHandler(stream_handler)
 
 parser = ArgumentParser()
 parser.add_argument('--once', help='single fetch')
+parser.add_argument('--dry', help='dry', action='store_true')
 parser.add_argument('--start', help='Start fetch from the uid specified in the parameter.')
 
 
 def main():
     setting = SettingManager()
     args = parser.parse_args()
+    if args.dry:
+        environ['DRY'] = True
     if args.once:
         __once(setting.users[0], setting.common, args.once)
         return
