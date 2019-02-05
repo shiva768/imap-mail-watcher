@@ -52,6 +52,7 @@ class MailParser:
         LOGGER.debug("bcc:{0}".format(bcc_))
         LOGGER.debug("subject:{0}".format(subject_))
         LOGGER.debug("body:{0}".format(self.content))
+        LOGGER.debug("attachments: {}".format(', '.join([attachment['name'] for attachment in self.attachments])))
         if self.converted:
             subject_ += ' \n(converted)'
         return MailModel(uid, date_, from_, to_, cc_, bcc_, subject_, self.content, self.attachments, origin_from_)
@@ -80,7 +81,8 @@ class MailParser:
             self.__multipart(email_message)
 
     def __extract_file(self, email_message: EmailMessage):
-        filename = email_message.get_filename()
+        filename_header = make_header(decode_header(email_message.get_filename()))
+        filename = filename_header._chunks[0][0] if len(filename_header._chunks[0]) > 0 and len(filename_header._chunks[0][0]) > 0 else email_message.get_filename() + '(decode failed)'
         self.attachments.append({
             "name": filename,
             "data": email_message.get_payload(decode=True)
