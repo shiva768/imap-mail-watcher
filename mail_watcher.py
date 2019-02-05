@@ -1,6 +1,8 @@
 import imaplib
+import socket
 from logging import getLogger
 from types import FunctionType
+
 
 """ logger setting """
 LOGGER = getLogger('imap-mail-watcher').getChild('watcher')
@@ -12,6 +14,7 @@ class MailWatcher:
         self.imap_setting = imap_setting
         self.fetch_function = fetch_function
         self.__connect()
+        self.connect_try_count = 0
 
     def __connect(self):
         LOGGER.debug('connecting')
@@ -30,7 +33,17 @@ class MailWatcher:
 
     def listen(self):
         while True:
-            self.__listen()
+            try:
+                self.__listen()
+                self.connect_try_count = 0
+            except socket.error as e:
+                self.connect_try_count += 1
+                import time
+                if self.connect_try_count <= 10:
+                    time.sleep(60)
+                else:
+                    raise e
+
 
     def __listen(self):
         try:

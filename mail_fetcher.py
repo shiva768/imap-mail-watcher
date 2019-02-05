@@ -1,5 +1,6 @@
 import imaplib
 import re
+import socket
 from logging import getLogger, Logger
 
 from cache_manager import CacheManager
@@ -25,6 +26,7 @@ class MailFetcher:
         self.receiver = None
         self.cache = cache
         self.login_failed_count = 0
+        self.connect_try_count = 0
 
     def initialize_fetch(self, start_uid):
         if start_uid is not None:
@@ -98,6 +100,19 @@ class MailFetcher:
 
     def fetch(self):
         try:
+            self.__fetch()
+            self.connect_try_count = 0
+        except socket.error as e:
+            self.connect_try_count += 1
+            import time
+            if self.connect_try_count <= 10:
+                time.sleep(60)
+                self.fetch()
+            else:
+                raise e
+
+    def __fetch(self):
+        try:
             LOGGER.info("current uid:{}".format(self.current_uid))
             status, data = self.imap.uid('fetch', "{}:*".format(self.current_uid.decode('utf-8')), 'BODY.PEEK[]')
             LOGGER.debug("fetch status: {}, data: {}".format(status, data))
@@ -107,15 +122,15 @@ class MailFetcher:
         except TimeoutError:
             LOGGER.info('fetcher timeout. reconnect')
             self.__reconnect()
-            self.fetch()
+            self.__fetch()
         except ConnectionResetError:
             LOGGER.info('fetcher connection reset. reconnect')
             self.__reconnect()
-            self.fetch()
+            self.__fetch()
         except imaplib.IMAP4.abort:
             LOGGER.info('fetcher timeout? reconnect')
             self.__reconnect()
-            self.fetch()
+            self.__fetch()
 
     def __extract(self, data):
         for idx, d in enumerate(data):

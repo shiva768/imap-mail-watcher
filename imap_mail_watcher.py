@@ -104,6 +104,6 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         pass
     except Exception as e:
-        LOGGER.warning("*** 異常 ***: {}".format(e))
+        LOGGER.exception("*** 異常 ***: %s", e)
     finally:
         LOGGER.info('*** 終了 ***')
