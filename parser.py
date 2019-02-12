@@ -92,7 +92,7 @@ class MailParser:
         for part in email_message.walk():  # type: EmailMessage
             if part.is_multipart():
                 continue
-            elif 'Content-Disposition' in part:
+            elif 'Content-Disposition' in part and part['Content-Disposition'] != 'inline':
                 self.__extract_file(part)
                 continue
             elif self.content is None:
