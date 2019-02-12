@@ -23,7 +23,6 @@ class MailFetcher:
         self.store_functions = store_functions
         seq_no = self.__connect()
         self.current_uid = self.__fetch_uid(seq_no)
-        self.receiver = None
         self.cache = cache
         self.login_failed_count = 0
         self.connect_try_count = 0

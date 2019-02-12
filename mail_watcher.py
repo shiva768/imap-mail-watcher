@@ -3,7 +3,6 @@ import socket
 from logging import getLogger
 from types import FunctionType
 
-
 """ logger setting """
 LOGGER = getLogger('imap-mail-watcher').getChild('watcher')
 """ /logger setting """
@@ -43,7 +42,6 @@ class MailWatcher:
                     time.sleep(60)
                 else:
                     raise e
-
 
     def __listen(self):
         try:
