@@ -6,6 +6,7 @@ from types import FunctionType
 """ logger setting """
 LOGGER = getLogger('imap-mail-watcher').getChild('watcher')
 """ /logger setting """
+COUNT_LIMIT = 10
 
 
 class MailWatcher:
@@ -14,6 +15,7 @@ class MailWatcher:
         self.fetch_function = fetch_function
         self.__connect()
         self.connect_try_count = 0
+        self.response_empty_count = 0
 
     def __connect(self):
         LOGGER.debug('connecting')
@@ -38,7 +40,7 @@ class MailWatcher:
             except socket.error as e:
                 self.connect_try_count += 1
                 import time
-                if self.connect_try_count <= 10:
+                if self.connect_try_count <= COUNT_LIMIT:
                     time.sleep(60)
                 else:
                     raise e
@@ -49,10 +51,17 @@ class MailWatcher:
             strip_line = line.strip()
             LOGGER.debug(strip_line)
             if strip_line.endswith(b'EXISTS'):
+                self.response_empty_count = 0
                 self.fetch_function()
             elif strip_line.find(b'BYE') >= 0:
                 LOGGER.info('reconnect')
                 self.__reconnect()
+            elif len(strip_line) == 0:
+                if self.response_empty_count <= COUNT_LIMIT:
+                    self.response_empty_count += 1
+                else:
+                    LOGGER.info('connection error? trying reconnect')
+                    self.__reconnect()
         except TimeoutError:
             LOGGER.info('watcher timeout. reconnect')
             self.__reconnect()
@@ -65,6 +74,7 @@ class MailWatcher:
 
     def __close(self):
         LOGGER.debug('close connection')
+        self.response_empty_count = 0
         try:
             self.imap.close()
             self.imap.logout()
