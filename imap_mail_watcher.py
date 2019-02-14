@@ -2,9 +2,11 @@
 # -*- coding: utf-8 -*-
 from argparse import ArgumentParser
 from concurrent.futures import ThreadPoolExecutor
-from logging import INFO, Formatter, StreamHandler, getLogger
+from logging import DEBUG, INFO, Formatter, StreamHandler, getLogger
 from os import environ
 
+d = DEBUG
+i = INFO
 from cache_manager import CacheManager
 from mail_fetcher import MailFetcher
 from mail_model import MailModel
@@ -16,7 +18,7 @@ from setting_manager import SettingManager
 """ logger setting """
 LOGGER = getLogger('imap-mail-watcher')
 formatter = Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-LOGGER.setLevel(INFO)
+LOGGER.setLevel(i)
 stream_handler = StreamHandler()
 stream_handler.setFormatter(formatter)
 # file_handler = FileHandler(filename='/var/log/')
