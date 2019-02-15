@@ -22,6 +22,7 @@ LOGGER.setLevel(d)
 stream_handler = StreamHandler()
 stream_handler.setFormatter(formatter)
 file_handler = FileHandler(filename='/var/log/mail_watcher')
+file_handler.setFormatter(formatter)
 LOGGER.addHandler(stream_handler)
 LOGGER.addHandler(file_handler)
 """ /logger setting """
