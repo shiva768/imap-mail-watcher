@@ -1,5 +1,6 @@
 import imaplib
 import socket
+import time
 from logging import getLogger
 from types import FunctionType
 
@@ -19,14 +20,18 @@ class MailWatcher:
 
     def __connect(self):
         LOGGER.debug('connecting')
-        self.imap = imaplib.IMAP4_SSL(self.imap_setting['host'])
-        self.imap.login(self.imap_setting['user'], self.imap_setting['password'])
-        self.imap.select()
-        self.imap.send(("{0} IDLE\r\n".format(self.imap._new_tag())).encode('utf-8'))
-        line = self.imap.readline()
-        if line != b'+ IDLE accepted, awaiting DONE command.\r\n':
-            raise Exception('connection error')
-        LOGGER.info('ready')
+        try:
+            self.imap = imaplib.IMAP4_SSL(self.imap_setting['host'])
+            self.imap.login(self.imap_setting['user'], self.imap_setting['password'])
+            self.imap.select()
+            self.imap.send(("{0} IDLE\r\n".format(self.imap._new_tag())).encode('utf-8'))
+            line = self.imap.readline()
+            if line != b'+ IDLE accepted, awaiting DONE command.\r\n':
+                raise Exception('connection error')
+            LOGGER.info('ready')
+        except TimeoutError:
+            LOGGER.info('connection timeout. retry connection after 1minutes')
+            time.sleep(60)
 
     def __del__(self):
         LOGGER.info('MailWatcher end')
@@ -39,7 +44,6 @@ class MailWatcher:
                 self.connect_try_count = 0
             except socket.error as e:
                 self.connect_try_count += 1
-                import time
                 if self.connect_try_count <= COUNT_LIMIT:
                     time.sleep(60)
                 else:
