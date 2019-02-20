@@ -32,6 +32,7 @@ class MailWatcher:
         except TimeoutError:
             LOGGER.info('connection timeout. retry connection after 1minutes')
             time.sleep(60)
+            self.__connect()
 
     def __del__(self):
         LOGGER.info('MailWatcher end')
