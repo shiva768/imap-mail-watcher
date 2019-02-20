@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 from argparse import ArgumentParser
 from concurrent.futures import ThreadPoolExecutor
-from logging import DEBUG, INFO, Formatter, StreamHandler, getLogger, FileHandler
+from logging import DEBUG, INFO, Formatter, StreamHandler, getLogger
+from logging.handlers import TimedRotatingFileHandler
 from os import environ
 
 d = DEBUG
@@ -21,7 +22,7 @@ formatter = Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 LOGGER.setLevel(d)
 stream_handler = StreamHandler()
 stream_handler.setFormatter(formatter)
-file_handler = FileHandler(filename='/var/log/mail_watcher')
+file_handler = TimedRotatingFileHandler('/var/log/mail_watcher', when="D", interval=1, backupCount=10)
 file_handler.setFormatter(formatter)
 LOGGER.addHandler(stream_handler)
 LOGGER.addHandler(file_handler)
